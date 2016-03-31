@@ -28,7 +28,7 @@ private:
 
 	perf_type **r;	// exact sort accordance
 	perf_type **charact;	// characteristics sort accordance
-	
+
 	clock_t start_tm, end_tm;
 	class cmpSort;
 	const double MIN_EQUAL = 0.0001;
@@ -37,7 +37,7 @@ public:
 	mutable int public_a;
 	enum R_Mode { EXAC = 0, MINP, MAXP, MIND, MAXD, MINPDD, MAXPDD, MINPD, MAXPD, SIZE };
 	enum Cmp_Mode { GREATER, LESS };
-	enum NS_Mode {SWAP,INSERT};
+	enum NS_Mode { SWAP, INSERT };
 	PMS(string, string, int);
 	PMS(int _m, int _n, proc_type ** _p, dete_type **_d,
 		int **_s_opt, obj_type _sol_obj_opt, string _file_input,
@@ -45,20 +45,20 @@ public:
 	void display_problem();
 	void display_solution(int);
 	void check_solution(int);
-	void init_solution(int,R_Mode);
+	void init_solution(int, R_Mode);
 	void calculate_completion_time(int, int);
 	void calculate_obj(int);
 	void remove_job(int, int, int);
-	void local_search(int,int, NS_Mode);
+	void local_search(int, int, NS_Mode);
 	void replace_solution(int, int);
 	void test();
 };
 
-PMS::PMS( int _m, int _n, proc_type ** _p, dete_type **_d,
+PMS::PMS(int _m, int _n, proc_type ** _p, dete_type **_d,
 	int **_s_opt, obj_type _sol_obj_opt, string _file_input,
 	string _file_output, int _sol_num) :m(_m), n(_n),
 	p(_p), d(_d), s_opt(_s_opt), sol_obj_opt(_sol_obj_opt), file_input(_file_input),
-	file_output(_file_output), sol_num(_sol_num) 
+	file_output(_file_output), sol_num(_sol_num)
 {
 	s = new int **[sol_num];
 	for (int i = 0; i < sol_num; i++)
@@ -107,7 +107,7 @@ PMS::PMS(string file_input, string file_output, int sol_num)
 			s[i][j] = new int[n + 1];
 		}
 	}
-	
+
 	for (int i = 1; i <= m; i++)
 	{
 		for (int j = 1; j <= n; j++)
@@ -184,14 +184,14 @@ PMS::PMS(string file_input, string file_output, int sol_num)
 			ifs >> s[sol_index_opt][i][j];	// the list of jobs to be assinged to machine i
 		}
 	}
-	ifs >> c[sol_index_opt][0];	
+	ifs >> c[sol_index_opt][0];
 	ifs.close();
 }
 class PMS::cmpSort
 {
 public:
-	cmpSort(double *as,Cmp_Mode _cm=Cmp_Mode::GREATER) :
-		array_sort(as),cm(_cm) {}
+	cmpSort(double *as, Cmp_Mode _cm = Cmp_Mode::GREATER) :
+		array_sort(as), cm(_cm) {}
 	bool operator()(int &l, int &r)
 	{
 		return (cm == Cmp_Mode::GREATER) ? (array_sort[l] > array_sort[r]) :
@@ -221,7 +221,7 @@ void PMS::display_problem()
 	}
 	private_a = 10;
 	public_a = 20;
-	
+
 	cout << private_a << "\t" << public_a << endl;
 }
 void PMS::display_solution(int sol_index)
@@ -240,11 +240,11 @@ void PMS::display_solution(int sol_index)
 void PMS::check_solution(int sol_index)
 {
 	cout << "*** check sol_index:" << sol_index
-		<< ", obj: "<< c[sol_index][0] << " ***" << endl;
+		<< ", obj: " << c[sol_index][0] << " ***" << endl;
 	perf_type ql;
 	obj_type cl, max_cl = 0;
 	int max_cl_mach_index;
-	
+
 	for (int i = 1; i <= m; i++)
 	{
 		ql = 1;
@@ -255,7 +255,7 @@ void PMS::check_solution(int sol_index)
 			ql *= (1 - d[i][s[sol_index][i][j - 1]]);
 			cl += p[i][s[sol_index][i][j]] / ql;
 			cout << cl << " ";
-		}		
+		}
 		if (max_cl < cl)
 		{
 			max_cl = cl;
@@ -266,7 +266,7 @@ void PMS::check_solution(int sol_index)
 	if (abs(max_cl - c[sol_index][0])>MIN_EQUAL/*||max_cl_mach_index!=mm[sol_index]*/)
 	{
 		cout << "ERROR, sol_index: " << sol_index
-			<< ", real obj: " << max_cl << " " << c[sol_index][0]<< endl;
+			<< ", real obj: " << max_cl << " " << c[sol_index][0] << endl;
 		system("pause");
 	}
 }
@@ -293,6 +293,7 @@ void PMS::remove_job(int sol_index, int mach_index, int key)
 			break;
 		}
 	}
+	s[sol_index][mach_index][0] -= 1;
 }
 void PMS::calculate_obj(int sol_index)
 {
@@ -308,7 +309,7 @@ void PMS::calculate_obj(int sol_index)
 			mm[sol_index] = i;
 	}
 }
-void PMS::init_solution(int sol_index,R_Mode rm)
+void PMS::init_solution(int sol_index, R_Mode rm)
 {
 	test();
 
@@ -320,7 +321,7 @@ void PMS::init_solution(int sol_index,R_Mode rm)
 	int *init_s = new int[n + 1];
 	for (int i = 1; i <= n; i++)
 		init_s[i] = i;
-	sort(init_s + 1, init_s + n + 1, cmpSort(charact[rm],Cmp_Mode::GREATER));
+	sort(init_s + 1, init_s + n + 1, cmpSort(charact[rm], Cmp_Mode::GREATER));
 	for (int i = 1; i <= n; i++)
 	{
 		cout << init_s[i] << " " << charact[rm][init_s[i]] << "\t";
@@ -357,13 +358,12 @@ void PMS::init_solution(int sol_index,R_Mode rm)
 			if (c[sol_index][i] < min_completion_time)
 			{
 				min_completion_time = c[sol_index][i];
-				min_ct_mach_index = i; 
+				min_ct_mach_index = i;
 				memcpy(s[sol_index_try][min_ct_mach_index], s[sol_index][min_ct_mach_index],
-					(s[sol_index][min_ct_mach_index][0] + 1)*sizeof(int));				
+					(s[sol_index][min_ct_mach_index][0] + 1)*sizeof(int));
 			}
 			remove_job(sol_index, i, init_s[j]);
 			c[sol_index][i] = pre_obj;
-			s[sol_index][i][0] -= 1;			
 		}
 		cout << "min_ct: " << min_completion_time << " min_ct_mach_index: " << min_ct_mach_index << endl;
 		memcpy(s[sol_index][min_ct_mach_index], s[sol_index_try][min_ct_mach_index],
@@ -385,46 +385,76 @@ void PMS::local_search(int sol_index, int sol_index_local, NS_Mode ns)
 {
 	replace_solution(sol_index_local, sol_index);
 	bool is_still_improved = true;
-	while(is_still_improved)
+	while (is_still_improved)
 	{
 		is_still_improved = false;
-	for (int jm = 1; jm <= s[sol_index_local][mm[sol_index_local]][0]; jm++)
-	{
-		for (int i = 1; i <= m; i++)
+		for (int jm = 1; jm <= s[sol_index_local][mm[sol_index_local]][0]; jm++)
 		{
-			if (i == mm[sol_index_local])
-				continue;
-			
-			for (int j = 1; j <= s[sol_index_local][i][0]; j++)
+			for (int i = 1; i <= m; i++)
 			{
-				// swap neighborhood
-				cout << "m,i: " << mm[sol_index_local] << ", " << i
-					<< " jm,j: " << s[sol_index_local][mm[sol_index_local]][jm] << ", " << s[sol_index_local][i][j] << endl;
-				int temp = s[sol_index_local][mm[sol_index_local]][jm];
-				s[sol_index_local][mm[sol_index_local]][jm] = s[sol_index_local][i][j];
-				s[sol_index_local][i][j] = temp;
-				sort(s[sol_index_local][mm[sol_index_local]] + 1, s[sol_index_local][mm[sol_index_local]] +
-					s[sol_index_local][mm[sol_index_local]][0] + 1, cmpSort(r[mm[sol_index_local]]));
-				calculate_completion_time(sol_index_local, mm[sol_index_local]);			
-				sort(s[sol_index_local][i] + 1, s[sol_index_local][i] + s[sol_index_local][i][0] + 1, cmpSort(r[i]));
-				calculate_completion_time(sol_index_local, i);
-				calculate_obj(sol_index_local);
-				display_solution(sol_index_local);
-				check_solution(sol_index_local);
-				if (c[sol_index][0] - c[sol_index_local][0] > MIN_EQUAL)
+				if (i == mm[sol_index_local])
+					continue;
+				if (ns == NS_Mode::INSERT)
 				{
-					replace_solution(sol_index, sol_index_local);
-					cout << c[sol_index][0] << " " << c[sol_index_local][0] << " improved @" << endl;
-					is_still_improved = true;
+					// insert neighborhood
+					cout << "m,i: " << mm[sol_index_local] << ", " << i
+						<< " jm,j: " << s[sol_index_local][mm[sol_index_local]][jm] << endl;
+					s[sol_index_local][i][0] += 1;
+					s[sol_index_local][i][s[sol_index_local][i][0]] = s[sol_index_local][mm[sol_index_local]][jm];
+					remove_job(sol_index_local, mm[sol_index_local], s[sol_index_local][mm[sol_index_local]][jm]);
+					/*sort(s[sol_index_local][mm[sol_index_local]] + 1, s[sol_index_local][mm[sol_index_local]] +
+						s[sol_index_local][mm[sol_index_local]][0] + 1, cmpSort(r[mm[sol_index_local]]));*/
+					calculate_completion_time(sol_index_local, mm[sol_index_local]);
+					sort(s[sol_index_local][i] + 1, s[sol_index_local][i] + s[sol_index_local][i][0] + 1, cmpSort(r[i]));
+					calculate_completion_time(sol_index_local, i);
+					calculate_obj(sol_index_local);
+					display_solution(sol_index_local);
+					check_solution(sol_index_local);
+					if (c[sol_index][0] - c[sol_index_local][0] > MIN_EQUAL)
+					{
+						replace_solution(sol_index, sol_index_local);
+						cout << c[sol_index][0] << " " << c[sol_index_local][0] << " improved @" << endl;
+						is_still_improved = true;
+					}
+					else
+					{
+						replace_solution(sol_index_local, sol_index);
+						cout << c[sol_index][0] << " " << c[sol_index_local][0] << " not improved" << endl;
+					}
 				}
-				else
+				else if (ns == NS_Mode::SWAP)
 				{
-					replace_solution(sol_index_local, sol_index);
-					cout << c[sol_index][0] << " " << c[sol_index_local][0] << " not improved" << endl;
+					for (int j = 1; j <= s[sol_index_local][i][0]; j++)
+					{
+						// swap neighborhood
+						cout << "m,i: " << mm[sol_index_local] << ", " << i
+							<< " jm,j: " << s[sol_index_local][mm[sol_index_local]][jm] << ", " << s[sol_index_local][i][j] << endl;
+						int temp = s[sol_index_local][mm[sol_index_local]][jm];
+						s[sol_index_local][mm[sol_index_local]][jm] = s[sol_index_local][i][j];
+						s[sol_index_local][i][j] = temp;
+						sort(s[sol_index_local][mm[sol_index_local]] + 1, s[sol_index_local][mm[sol_index_local]] +
+							s[sol_index_local][mm[sol_index_local]][0] + 1, cmpSort(r[mm[sol_index_local]]));
+						calculate_completion_time(sol_index_local, mm[sol_index_local]);
+						sort(s[sol_index_local][i] + 1, s[sol_index_local][i] + s[sol_index_local][i][0] + 1, cmpSort(r[i]));
+						calculate_completion_time(sol_index_local, i);
+						calculate_obj(sol_index_local);
+						display_solution(sol_index_local);
+						check_solution(sol_index_local);
+						if (c[sol_index][0] - c[sol_index_local][0] > MIN_EQUAL)
+						{
+							replace_solution(sol_index, sol_index_local);
+							cout << c[sol_index][0] << " " << c[sol_index_local][0] << " improved @" << endl;
+							is_still_improved = true;
+						}
+						else
+						{
+							replace_solution(sol_index_local, sol_index);
+							cout << c[sol_index][0] << " " << c[sol_index_local][0] << " not improved" << endl;
+						}
+					}
 				}
 			}
 		}
-	}
 	}
 	display_solution(sol_index);
 }
@@ -432,7 +462,7 @@ void PMS::test()
 {
 	cout << endl << "This is test function." << endl;
 	int cnt = 3;
-	int si[] = { 5,1 ,2};
+	int si[] = { 5,1 ,2 };
 	double rd[] = { 7000,2000,4000,1400,900,3400 };
 
 	sort(si, si + cnt, cmpSort(rd));
@@ -444,14 +474,14 @@ void PMS::test()
 int main(int argc, char **argv)
 {
 	cout << "This is the PMS problem solver." << endl;
-	PMS *pms=new PMS("instance\\OB_Problem_OptSolution\\Ni_8_2-1_1_1", "",5);
+	PMS *pms = new PMS("instance\\OB_Problem_OptSolution\\Ni_8_2-1_1_1", "", 5);
 	pms->display_problem();
 	pms->display_solution(0);
-	pms->check_solution(0); 
-	pms->init_solution(1,PMS::MAXPDD);
+	pms->check_solution(0);
+	pms->init_solution(1, PMS::MAXPDD);
 	pms->display_solution(1);
 	pms->check_solution(1);
-	pms->local_search(1, 2,PMS::SWAP);
+	pms->local_search(1, 2, PMS::INSERT);
 	system("pause");
 }
 #endif
