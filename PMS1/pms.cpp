@@ -596,10 +596,10 @@ void PMS::local_search_hybrid(int sol_index, int sol_index_local, NS_Mode ns)
 }
 void PMS::local_search_hybrid1(int sol_index, int sol_index_local, NS_Mode ns)
 {
-	bool is_still_improved = true;
-	while (is_still_improved)
+	bool is_still_improve_insert = true, is_still_improve_swap = true;
+	while (is_still_improve_insert||is_still_improve_swap)
 	{
-		is_still_improved = false;
+		is_still_improve_insert = is_still_improve_swap = false;
 		bool is_mm_unchanged = true;
 		int pre_mm = mm[sol_index];// s[sol_index_local][][0];
 		for (int jm = 1; jm <= s[sol_index][mm[sol_index]][0] && is_mm_unchanged; jm++)
@@ -616,19 +616,17 @@ void PMS::local_search_hybrid1(int sol_index, int sol_index_local, NS_Mode ns)
 				//check_solution(sol_index_local);
 				if (c[sol_index][0] - c[sol_index_local][0] > min_delta_f)
 				{
+					min_delta_f = c[sol_index][0] - c[sol_index_local][0];
 					min_delta_f_mach = i;
 				}
 			}
 			if (min_delta_f_mach != 0)
 			{
 				insert(sol_index, mm[sol_index], jm, min_delta_f_mach);
-				is_still_improved = true;
 				if (pre_mm != mm[sol_index])
 					is_mm_unchanged = false;
+				is_still_improve_insert = true;
 			}
-		
-				/*check_solution(sol_index_local);
-				cout << mm[sol_index_local] << " " << pre_mm << endl;*/
 			min_delta_f = MIN_EQUAL;
 			min_delta_f_mach = 0;
 			for (int i = 1; i <= m&&is_mm_unchanged; i++)
@@ -642,6 +640,7 @@ void PMS::local_search_hybrid1(int sol_index, int sol_index_local, NS_Mode ns)
 					//check_solution(sol_index_local);
 					if (c[sol_index][0] - c[sol_index_local][0] > min_delta_f)
 					{
+						min_delta_f = c[sol_index][0] - c[sol_index_local][0];
 						min_delta_f_mach = i;
 						min_delta_f_mach_j = j;
 					}
@@ -650,9 +649,9 @@ void PMS::local_search_hybrid1(int sol_index, int sol_index_local, NS_Mode ns)
 			if (min_delta_f_mach != 0)
 			{
 				swap(sol_index, mm[sol_index], jm, min_delta_f_mach, min_delta_f_mach_j);
-				is_still_improved = true;
 				if (pre_mm != mm[sol_index])
 					is_mm_unchanged = false;
+				is_still_improve_swap = true;
 			}
 		}
 	}
