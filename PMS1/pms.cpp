@@ -52,6 +52,7 @@ public:
 	void remove_job(int, int, int);
 	void local_search(int, int, NS_Mode);
 	void local_search_hybrid(int, int, NS_Mode);
+	void local_search_hybrid1(int, int, NS_Mode);
 	void iterated_local_search(int, int, int, NS_Mode);
 	void replace_solution(int, int);
 	void perturb(int, int);
@@ -593,16 +594,77 @@ void PMS::local_search_hybrid(int sol_index, int sol_index_local, NS_Mode ns)
 		}
 	}
 }
+void PMS::local_search_hybrid1(int sol_index, int sol_index_local, NS_Mode ns)
+{
+	bool is_still_improved = true;
+	while (is_still_improved)
+	{
+		is_still_improved = false;
+		bool is_mm_unchanged = true;
+		int pre_mm = mm[sol_index];// s[sol_index_local][][0];
+		for (int jm = 1; jm <= s[sol_index][mm[sol_index]][0] && is_mm_unchanged; jm++)
+		{
+			obj_type min_delta_f = MIN_EQUAL;
+			int min_delta_f_mach = 0;
+			int min_delta_f_mach_j;
+			for (int i = 1; i <= m; i++)
+			{
+				if (i == mm[sol_index])
+					continue;
+				replace_solution(sol_index_local, sol_index);
+				insert(sol_index_local, mm[sol_index_local], jm, i);
+				//check_solution(sol_index_local);
+				if (c[sol_index][0] - c[sol_index_local][0] > min_delta_f)
+				{
+					min_delta_f_mach = i;
+				}
+			}
+			if (min_delta_f_mach != 0)
+			{
+				insert(sol_index, mm[sol_index], jm, min_delta_f_mach);
+				if (pre_mm != mm[sol_index])
+					is_mm_unchanged = false;
+			}
+		
+				/*check_solution(sol_index_local);
+				cout << mm[sol_index_local] << " " << pre_mm << endl;*/
+			min_delta_f = MIN_EQUAL;
+			min_delta_f_mach = 0;
+			for (int i = 1; i <= m&&is_mm_unchanged; i++)
+			{
+				if (i == mm[sol_index])
+					continue;
+				for (int j = 1; j <= s[sol_index][i][0]; j++)
+				{
+					replace_solution(sol_index_local, sol_index);
+					swap(sol_index_local, mm[sol_index_local], jm, i, j);
+					//check_solution(sol_index_local);
+					if (c[sol_index][0] - c[sol_index_local][0] > min_delta_f)
+					{
+						min_delta_f_mach = i;
+						min_delta_f_mach_j = j;
+					}
+				}
+			}
+			if (min_delta_f_mach != 0)
+			{
+				swap(sol_index, mm[sol_index], jm, min_delta_f_mach, min_delta_f_mach_j);
+				if (pre_mm != mm[sol_index])
+					is_mm_unchanged = false;
+			}
+		}
+	}
+}
 void PMS::iterated_local_search(int iteration, int perturb_rate, int iteration1, NS_Mode ns)
 {
 	int sol_index_opt = 0, sol_index_best = 1, sol_index_cur = 2, sol_index_local = 3;
 	init_solution(sol_index_cur, sol_index_local, PMS::MINPDD);
-	local_search_hybrid(sol_index_cur, sol_index_local, ns);
+	local_search_hybrid1(sol_index_cur, sol_index_local, ns);
 	replace_solution(sol_index_best, sol_index_cur);
 	for (int i = 0; i < iteration; i++)
 	{
 		perturb(sol_index_cur, perturb_rate);
-		local_search_hybrid(sol_index_cur, sol_index_local, NS_Mode::SWAP);
+		local_search_hybrid1(sol_index_cur, sol_index_local, NS_Mode::SWAP);
 		//local_search(sol_index_cur, sol_index_local, NS_Mode::INSERT);
 		if (c[sol_index_best][0] - c[sol_index_cur][0]>MIN_EQUAL)
 			replace_solution(sol_index_best, sol_index_cur);
