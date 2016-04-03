@@ -622,6 +622,7 @@ void PMS::local_search_hybrid1(int sol_index, int sol_index_local, NS_Mode ns)
 			if (min_delta_f_mach != 0)
 			{
 				insert(sol_index, mm[sol_index], jm, min_delta_f_mach);
+				is_still_improved = true;
 				if (pre_mm != mm[sol_index])
 					is_mm_unchanged = false;
 			}
@@ -649,6 +650,7 @@ void PMS::local_search_hybrid1(int sol_index, int sol_index_local, NS_Mode ns)
 			if (min_delta_f_mach != 0)
 			{
 				swap(sol_index, mm[sol_index], jm, min_delta_f_mach, min_delta_f_mach_j);
+				is_still_improved = true;
 				if (pre_mm != mm[sol_index])
 					is_mm_unchanged = false;
 			}
