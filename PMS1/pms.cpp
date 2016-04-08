@@ -6,6 +6,7 @@
 #include<time.h>
 #include<iomanip>
 #include<algorithm>
+#include<math.h>
 #include<map>
 using namespace std;
 typedef double proc_type;	// type of processing time
@@ -34,13 +35,14 @@ private:
 	clock_t start_tm, end_tm;
 	class cmpSort;
 	const double MIN_EQUAL = 0.0001;
-	int rand_seed;
+	int rand_seed, opt_cnt;
 	ofstream ofs;
 public:
 	enum R_Mode { EXAC = 0, MINP, MAXP, MIND, MAXD, MINPDD, MAXPDD, MINPD, MAXPD, SIZE };
 	enum Cmp_Mode { GREATER, LESS };
 	enum NS_Mode { SWAP, INSERT };
 	int whe_save_sol_seq;
+	double control_para, temperature;
 	PMS(string, string, int);
 	~PMS();
 	PMS(int _m, int _n, proc_type ** _p, dete_type **_d,
@@ -641,13 +643,16 @@ void PMS::local_search_hybrid1(int sol_index, int sol_index_local, NS_Mode ns)
 	while (is_still_improve)
 	{
 		is_still_improve = false;
-		for (int jm = 1; jm <= s[sol_index][mm[sol_index]][0]; jm++)
+		for (int jm = rand() % s[sol_index][mm[sol_index]][0], jm_r = 1;
+		jm_r <= s[sol_index][mm[sol_index]][0]; jm_r++)
 		{
+			jm = jm% s[sol_index][mm[sol_index]][0] + 1;
 			obj_type min_delta_f = MIN_EQUAL;
 			int min_delta_f_mach = 0;
 			int min_delta_f_mach_j = 0;
-			for (int i = 1; i <= m; i++)
+			for (int i = rand() % m, i_r = 1; i_r <= m; i_r++)
 			{
+				i = i%m + 1;
 				if (i == mm[sol_index])
 					continue;
 				replace_solution(sol_index_local, sol_index);
@@ -705,41 +710,6 @@ void PMS::local_search_hybrid1(int sol_index, int sol_index_local, NS_Mode ns)
 		}
 	}
 }
-void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, NS_Mode ns, int run_cnt)
-{
-	int sol_index_opt = 0, sol_index_best = 1, sol_index_cur = 2, sol_index_local = 3;
-	init_solution(sol_index_cur, sol_index_local, r_mode);	//PMS::MINPDD
-	//display_solution(sol_index_cur);
-	local_search_hybrid1(sol_index_cur, sol_index_local, ns);
-	replace_solution(sol_index_best, sol_index_cur);
-	save_solution(sol_index_best, sol_index_opt, 0, run_cnt);
-	for (int i = 0; i < iteration; i++)
-	{
-		perturb(sol_index_cur, perturb_rate);
-		//cout << c[sol_index_best][0] << ", " << c[sol_index_cur][0] << endl;
-		local_search_hybrid1(sol_index_cur, sol_index_local, ns);
-		//local_search(sol_index_cur, sol_index_local, NS_Mode::INSERT);
-		if (c[sol_index_best][0] - c[sol_index_cur][0]>MIN_EQUAL)
-		{
-			replace_solution(sol_index_best, sol_index_cur);
-			save_solution(sol_index_best, sol_index_opt, i, run_cnt);
-			if (abs(c[sol_index_best][0] - c[sol_index_opt][0]) <= MIN_EQUAL)
-				break;
-		}
-		else
-			replace_solution(sol_index_cur, sol_index_best);
-	}
-	check_solution(sol_index_best);
-	/*display_solution(sol_index_opt);
-	display_solution(sol_index_best);*/
-	cout << c[sol_index_best][0] << " " << c[sol_index_opt][0];
-	if (abs(c[sol_index_best][0] - c[sol_index_opt][0]) <= MIN_EQUAL)
-		cout << ", find the optimal solution£¡£¡£¡" << endl;
-	else if (c[sol_index_opt][0] - c[sol_index_best][0] > MIN_EQUAL)
-		cout << ", +++improved the optimal solution!!!+++" << endl;
-	else
-		cout << ", can not find..." << endl;
-}
 void PMS::perturb(int sol_index, int ptr_rate)
 {
 	for (int i = 0; i < s[sol_index][mm[sol_index]][0] * ptr_rate*0.01; i++)
@@ -762,20 +732,65 @@ void PMS::perturb(int sol_index, int ptr_rate)
 }
 void PMS::test()
 {
-	cout << endl << "This is test function." << endl;
+	/*cout << endl << "This is test function." << endl;*/
 	int cnt = 3;
 	int si[] = { 5,1 ,2 };
 	double rd[] = { 7000,2000,4000,1400,900,3400 };
 
 	sort(si, si + cnt, cmpSort(rd));
-	for (int i = 0; i < cnt; i++)
-		cout << si[i] << "," << rd[i] << " ";
-	cout << endl << "end of test function." << endl;
+	/*for (int i = 0; i < cnt; i++)
+	cout << si[i] << "," << rd[i] << " ";
+	cout << endl << "end of test function." << endl;*/
 
-	for (int i = rand() % n; i < n; i++)
+	//cout << ri << endl;
+	for (int ri = rand() % 10, i = 1; i <= 10; i++)
 	{
-
+		ri = ri % 10 + 1;
+		cout << ri << "\t";
 	}
+	cout << endl;
+}
+void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, NS_Mode ns, int run_cnt)
+{
+	int sol_index_opt = 0, sol_index_best = 1,
+		sol_index_cur = 2, sol_index_local = 3, sol_index_ptr = 4;
+	start_tm = clock();
+	init_solution(sol_index_cur, sol_index_local, r_mode);	//PMS::MINPDD
+	//display_solution(sol_index_cur);
+	local_search_hybrid1(sol_index_cur, sol_index_local, ns);
+	replace_solution(sol_index_best, sol_index_cur);
+	save_solution(sol_index_best, sol_index_opt, 0, run_cnt);
+	for (int i = 0; i < iteration; i++)
+	{
+		replace_solution(sol_index_ptr, sol_index_cur);
+		perturb(sol_index_ptr, perturb_rate);
+		//cout << c[sol_index_best][0] << ", " << c[sol_index_cur][0] << endl;
+		local_search_hybrid1(sol_index_ptr, sol_index_local, ns);
+		if (c[sol_index_best][0] - c[sol_index_ptr][0]>MIN_EQUAL)
+		{
+			replace_solution(sol_index_best, sol_index_ptr);
+			save_solution(sol_index_best, sol_index_opt, i, run_cnt);
+			/*if (abs(c[sol_index_best][0] - c[sol_index_opt][0]) <= MIN_EQUAL)
+				break;*/
+		}
+		if (c[sol_index_cur][0] - c[sol_index_ptr][0] > MIN_EQUAL ||
+			rand() % 100 <= (100 * exp((c[sol_index_cur][0] - c[sol_index_ptr][0]) / temperature)))
+			replace_solution(sol_index_cur, sol_index_ptr);
+		temperature *= control_para;
+	}
+	//check_solution(sol_index_best);
+	/*display_solution(sol_index_opt);
+	display_solution(sol_index_best);*/
+	cout << c[sol_index_best][0] << " " << c[sol_index_opt][0];
+	if (abs(c[sol_index_best][0] - c[sol_index_opt][0]) <= MIN_EQUAL)
+	{
+		opt_cnt += 1;
+		cout << ", find the optimal solution£¡£¡£¡" << opt_cnt << endl;
+	}
+	else if (c[sol_index_opt][0] - c[sol_index_best][0] > MIN_EQUAL)
+		cout << ", +++improved the optimal solution!!!+++" << endl;
+	else
+		cout << ", can not find..." << endl;
 }
 int main(int argc, char **argv)
 {
@@ -788,14 +803,16 @@ int main(int argc, char **argv)
 		"_if","instance\\BB_Problem_BestSolution\\",	//3,4	
 		"_of","results\\",//5,6	
 		"_p","13",		//7,8
-		"_r","20",		//9,10
+		"_r","1000",		//9,10
 		"_itr","200",	//11,12
-		"_ptr","300",	//13,14
+		"_ptr","30",	//13,14
 		"_rm","1",	//15,16
 		"_ns","0",	//17,18		
 		"_r1","1",	//19,20
 		"_r2","20",	//21,22
-		"_ws","0"	//23,24
+		"_ws","0",	//23,24
+		"_t","2",	//25,26
+		"_cp","90"	//27,28
 	};
 	argv = rgv;
 	std::map<string, string> argv_map;
@@ -827,6 +844,8 @@ int main(int argc, char **argv)
 	cout << "..." << endl;
 	PMS *pms = new PMS(fnr, fnw, stoi(argv_map.at("_p")));//Ni_14_4-1_1_15
 	pms->whe_save_sol_seq = stoi(argv_map.at("_ws"));
+	pms->temperature = stoi(argv_map.at("_t"));
+	pms->control_para = stoi(argv_map.at("_cp"))*0.01;
 	pms->display_problem();
 	pms->display_solution(0);
 	pms->check_solution(0);
@@ -851,7 +870,7 @@ int main(int argc, char **argv)
 	PMS::NS_Mode ns_mode = stoi(argv_map.at("_ns")) == 0 ? PMS::SWAP : PMS::INSERT;
 	for (int run_cnt = 0; run_cnt < stoi(argv_map.at("_r")); run_cnt++)
 		pms->iterated_local_search(stoi(argv_map.at("_itr")), stoi(argv_map.at("_ptr")),
-			r_mode, ns_mode, run_cnt+1);
+			r_mode, ns_mode, run_cnt + 1);
 	delete pms;
 	cout << "\nEnds at ";
 	tt = time(NULL);
