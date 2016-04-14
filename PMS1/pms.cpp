@@ -784,7 +784,7 @@ void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, 
 	int opt_cnt = 0, imp_cnt = 0, non_imp_cnt = 0;
 	obj_type sum_obj = 0;
 	int rt = time(NULL);
-	//rt = 146029281;
+	rt = 1460573277;
 	srand(rt);
 	ofs << ins_name << "\t" << n << "\t" << m << "\t"
 		<< obj_given << "\t" << c[sol_index_opt][0] << "\t" << rt << endl;
@@ -829,7 +829,7 @@ void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, 
 void run_algorithm(int argc, char **argv,string input_file)
 {
 	char *rgv[] = { "",	//0
-		"_fn","total_results9",	//1,2
+		"_fn","total_results10",	//1,2
 		"_if","instance\\BB_Problem_BestSolution\\",	//3,4	
 		"_of","results\\",//5,6	
 		"_p","13",		//7,8
@@ -844,7 +844,8 @@ void run_algorithm(int argc, char **argv,string input_file)
 		"_t","2",	//25,26
 		"_cp","90"	//27,28
 	};
-	//argv = rgv;
+	/*argc = sizeof(rgv) / sizeof(rgv[0]);
+	argv = rgv;*/
 	std::map<string, string> argv_map;
 	for (int i = 1; i < argc; i += 2)//sizeof(rgv) / sizeof(rgv[0])
 	{
@@ -922,8 +923,8 @@ int main(int argc, char **argv)
 	//rt = 1460296365;//1459751481
 	//cout << rt << endl;
 	//srand(rt);
-	string ins_name="Ni_8_2-1_1_13";
-	//run_algorithm(ins_name); 
+	string ins_name="Ni_50_4-2_2_9";
+	/*run_algorithm(argc,argv,ins_name); */
 	/*ins_name = "Ni_50_10-1_1_13";
 	run_algorithm(ins_name);*/
 	vector<vector<int>> n_vec = { { 8, 11, 14},{20,35,50 } };
