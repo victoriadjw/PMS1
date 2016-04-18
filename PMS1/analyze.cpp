@@ -46,6 +46,7 @@ class Analyze {
 public:
 	Analyze(string, string,string);
 	void total_info();
+	void para_setting();
 	double f[2], d[2], h[2], t[2];
 	int cmp_give_result_total_cnt[2][3], set_ins_cnt[2];
 	double optfound_pct[2][10][4];
@@ -56,12 +57,19 @@ public:
 	const enum JM { HR_JUDGE, DEV_JUDGE, TIME_JUDGE, OBJ_JUDGE };
 private:
 	string fnr,fnw,fnwt;
+	bool whe_input_table_head;
 	ofstream ofs,ofst;
 	vector<InstanceInfo*>insinfo_vec; 
 };
 Analyze::Analyze(string _fnr, string _fnw,string _fnwt):fnr(_fnr),fnw(_fnw),fnwt(_fnwt)
 {
-	ifstream ifs(fnr);
+	ifstream ifs(fnwt);
+	if (!ifs.is_open())
+		whe_input_table_head = true;
+	else
+		whe_input_table_head = false;
+	ifs.close();
+	ifs.open(fnr);
 	if (!ifs.is_open())
 	{
 		cout << fnr << endl; perror("file_input.");
@@ -131,9 +139,11 @@ Analyze::Analyze(string _fnr, string _fnw,string _fnwt):fnr(_fnr),fnw(_fnw),fnwt
 	}
 	ifs.close();
 }
-void Analyze::total_info()
+void Analyze::para_setting()
 {
-	ofs << "(*iter)->filename  \t  (*iter)->n  \t  (*iter)->m  \t"
+	if (whe_input_table_head)
+		ofst << "fnr \t"
+		<< "(*iter)->filename  \t  (*iter)->n  \t  (*iter)->m  \t"
 		<< "(*iter)->opt_obj_given  \t  (*iter)->opt_obj_real  \t"
 		<< "(*iter)->rand_seed  \t  (*iter)->sol_info_vec.size()  \t"
 		<< "obj[0]  \t  obj[1]  \t  obj[2]  \t"
@@ -158,14 +168,14 @@ void Analyze::total_info()
 			if (iter_sol == (*iter)->sol_info_vec.begin())
 			{
 				obj[MIN] = obj[AVG] = obj[MAX] = (*iter_sol)->obj;
-				iteration[0] = iteration[1] = iteration[2] = (*iter_sol)->iteration;
-				tm[0] = tm[1] = tm[2] = (*iter_sol)->tm;
+				iteration[MIN] = iteration[AVG] = iteration[MAX] = (*iter_sol)->iteration;
+				tm[MIN] = tm[AVG] = tm[MAX] = (*iter_sol)->tm;
 			}
 			else
 			{
-				obj[1] += (*iter_sol)->obj;
-				iteration[1] += (*iter_sol)->iteration;
-				tm[1] += (*iter_sol)->tm;
+				obj[AVG] += (*iter_sol)->obj;
+				iteration[AVG] += (*iter_sol)->iteration;
+				tm[AVG] += (*iter_sol)->tm;
 
 				if (obj[MIN] - (*iter_sol)->obj > MIN_EQUAL)
 					obj[MIN] = (*iter_sol)->obj;
@@ -205,9 +215,246 @@ void Analyze::total_info()
 			else
 				cmp_give_result_cnt[NONIMPROVED] += 1;// not improved		
 		}
-		obj[1] /= (*iter)->sol_info_vec.size();
-		iteration[1] /= (*iter)->sol_info_vec.size();
-		tm[1] /= (*iter)->sol_info_vec.size();
+		obj[AVG] /= (*iter)->sol_info_vec.size();
+		iteration[AVG] /= (*iter)->sol_info_vec.size();
+		tm[AVG] /= (*iter)->sol_info_vec.size();
+		ofst << fnr << "\t" << (*iter)->filename << "\t" << (*iter)->n << "\t" << (*iter)->m << "\t"
+			<< (*iter)->opt_obj_given << "\t" << (*iter)->opt_obj_real << "\t"
+			<< (*iter)->rand_seed << "\t" << (*iter)->sol_info_vec.size() << "\t"
+			<< obj[MIN] << "\t" << obj[AVG] << "\t" << obj[MAX] << "\t"
+			<< iteration[MIN] << "\t" << iteration[AVG] << "\t" << iteration[MAX] << "\t"
+			<< tm[MIN] << "\t" << tm[AVG] << "\t" << tm[MAX] << "\t"
+			<< cmp_give_result_cnt[IMPROVED] << "\t" << cmp_give_result_cnt[EQUAL] << "\t" << cmp_give_result_cnt[NONIMPROVED] << "\t"
+			<< cmp_real_result_cnt[IMPROVED] << "\t" << cmp_real_result_cnt[EQUAL] << "\t" << cmp_real_result_cnt[NONIMPROVED] << endl;
+		if (cmp_give_result_cnt[IMPROVED] > 0)
+		{
+			/*ofst << (*iter)->filename << "\t" << (*iter)->n << "\t" << (*iter)->m << "\t"
+			<< (*iter)->opt_obj_given << "\t" << (*iter)->opt_obj_real << "\t"
+			<< (*iter)->rand_seed << "\t" << (*iter)->sol_info_vec.size() << "\t"
+			<< obj[MIN] << "\t" << obj[AVG] << "\t" << obj[MAX] << "\t"
+			<< iteration[MIN] << "\t" << iteration[AVG] << "\t" << iteration[MAX] << "\t"
+			<< tm[MIN] << "\t" << tm[AVG] << "\t" << tm[MAX] << "\t"
+			<< cmp_give_result_cnt[IMPROVED] << "\t" << cmp_give_result_cnt[EQUAL] << "\t" << cmp_give_result_cnt[NONIMPROVED] << "\t"
+			<< cmp_real_result_cnt[IMPROVED] << "\t" << cmp_real_result_cnt[EQUAL] << "\t" << cmp_real_result_cnt[NONIMPROVED] << endl;*/
+		}
+		int set_index = OB;
+		if ((*iter)->n > 14)	// OB set
+			set_index = BB;
+		f[set_index] += obj[AVG];
+		d[set_index] += (obj[AVG] - obj[MIN]) / obj[MIN];
+		double cur_instance_hr = (double)cmp_give_result_cnt[set_index == OB ? EQUAL : IMPROVED] / (*iter)->sol_info_vec.size();
+		h[set_index] += cur_instance_hr;
+		t[set_index] += tm[AVG];
+		if (cmp_give_result_cnt[IMPROVED] > 0)
+			cmp_give_result_total_cnt[set_index][IMPROVED] += 1;
+		if (cmp_give_result_cnt[IMPROVED] == 0 && cmp_give_result_cnt[EQUAL] > 0)
+			cmp_give_result_total_cnt[set_index][EQUAL] += 1;
+		if (cmp_give_result_cnt[IMPROVED] == 0 && cmp_give_result_cnt[EQUAL] == 0)
+			cmp_give_result_total_cnt[set_index][NONIMPROVED] += 1;
+
+		int p_para, d_para, m_para, n_para;
+		p_para = (*iter)->p == 1 ? P1 : P2;
+		d_para = (*iter)->d == 1 ? D1 : D2;
+		if ((set_index == OB && (*iter)->m == 2) || (set_index == BB && (*iter)->m == 4))
+			m_para = M1;
+		else if ((set_index == OB && (*iter)->m == 3) || (set_index == BB && (*iter)->m == 7))
+			m_para = M2;
+		else
+			m_para = M3;
+		if ((set_index == OB && (*iter)->n == 8) || (set_index == BB && (*iter)->n == 20))
+			n_para = N1;
+		else if ((set_index == OB && (*iter)->n == 11) || (set_index == BB && (*iter)->n == 35))
+			n_para = N2;
+		else
+			n_para = N3;
+		optfound_pct[set_index][p_para][HR_JUDGE] += cur_instance_hr;
+		optfound_pct[set_index][d_para][HR_JUDGE] += cur_instance_hr;
+		optfound_pct[set_index][m_para][HR_JUDGE] += cur_instance_hr;
+		optfound_pct[set_index][n_para][HR_JUDGE] += cur_instance_hr;
+		optfound_pct[set_index][p_para][DEV_JUDGE] += (obj[AVG] - obj[MIN]) / obj[MIN];
+		optfound_pct[set_index][d_para][DEV_JUDGE] += (obj[AVG] - obj[MIN]) / obj[MIN];
+		optfound_pct[set_index][m_para][DEV_JUDGE] += (obj[AVG] - obj[MIN]) / obj[MIN];
+		optfound_pct[set_index][n_para][DEV_JUDGE] += (obj[AVG] - obj[MIN]) / obj[MIN];
+		optfound_pct[set_index][p_para][TIME_JUDGE] += tm[AVG];
+		optfound_pct[set_index][d_para][TIME_JUDGE] += tm[AVG];
+		optfound_pct[set_index][m_para][TIME_JUDGE] += tm[AVG];
+		optfound_pct[set_index][n_para][TIME_JUDGE] += tm[AVG];
+		optfound_pct[set_index][p_para][OBJ_JUDGE] += obj[AVG];
+		optfound_pct[set_index][d_para][OBJ_JUDGE] += obj[AVG];
+		optfound_pct[set_index][m_para][OBJ_JUDGE] += obj[AVG];
+		optfound_pct[set_index][n_para][OBJ_JUDGE] += obj[AVG];
+
+		set_ins_cnt[set_index] += 1;
+	}
+	for (int sm = SM::OB; sm <= SM::BB; sm++)
+	{
+		f[sm] /= set_ins_cnt[sm];
+		d[sm] /= set_ins_cnt[sm], d[sm] *= 100;
+		h[sm] /= set_ins_cnt[sm], h[sm] *= 100;
+		t[sm] /= set_ins_cnt[sm];
+		for (int para = PM::P1; para <= PM::N3; para++)
+		{
+			for (int judm = JM::HR_JUDGE; judm <= JM::OBJ_JUDGE; judm++)
+			{
+				if (para <= PM::D2)
+					optfound_pct[sm][para][judm] /= (set_ins_cnt[sm] / 2);
+				else
+					optfound_pct[sm][para][judm] /= (set_ins_cnt[sm] / 3);
+				if (judm == JM::DEV_JUDGE || judm == JM::HR_JUDGE)
+					optfound_pct[sm][para][judm] *= 100;
+			}
+		}
+	}
+	/*ofst << "fnr \t"
+	<< "optfound_pct[OB][P1] \t optfound_pct[OB][P2] \t"
+	<< "optfound_pct[OB][D1] \t optfound_pct[OB][D2] \t"
+	<< "optfound_pct[OB][M1] \t optfound_pct[OB][M2] \t optfound_pct[OB][M3] \t"
+	<< "optfound_pct[OB][N1] \t optfound_pct[OB][N2] \t optfound_pct[OB][N3] \t"
+	<< "optfound_pct[BB][P1] \t optfound_pct[BB][P2] \t"
+	<< "optfound_pct[BB][D1] \t optfound_pct[BB][D2] \t"
+	<< "optfound_pct[BB][M1] \t optfound_pct[BB][M2] \t optfound_pct[BB][M3] \t"
+	<< "optfound_pct[BB][N1] \t optfound_pct[BB][N2] \t optfound_pct[BB][N3] \t"
+	<< endl;*/
+	for (int judm = JM::HR_JUDGE; judm <= JM::OBJ_JUDGE; judm++)
+	{
+		string str_jm = "HR_JUDGE";
+		if (judm == JM::DEV_JUDGE)
+			str_jm = "DEV_JUDGE";
+		if (judm == JM::OBJ_JUDGE)
+			str_jm = "OBJ_JUDGE";
+		if (judm == JM::TIME_JUDGE)
+			str_jm = "TIME_JUDGE";
+		/*ofst << fnr << "\t" << str_jm << "\t"
+		<< optfound_pct[OB][P1][judm] << "\t" << optfound_pct[OB][P2][judm] << "\t"
+		<< optfound_pct[OB][D1][judm] << "\t" << optfound_pct[OB][D2][judm] << "\t"
+		<< optfound_pct[OB][M1][judm] << "\t" << optfound_pct[OB][M2][judm] << "\t" << optfound_pct[OB][M3][judm] << "\t"
+		<< optfound_pct[OB][M1][judm] << "\t" << optfound_pct[OB][M2][judm] << "\t" << optfound_pct[OB][M3][judm] << "\t"
+		<< optfound_pct[BB][P1][judm] << "\t" << optfound_pct[BB][P2][judm] << "\t"
+		<< optfound_pct[BB][D1][judm] << "\t" << optfound_pct[BB][D2][judm] << "\t"
+		<< optfound_pct[BB][M1][judm] << "\t" << optfound_pct[BB][M2][judm] << "\t" << optfound_pct[BB][M3][judm] << "\t"
+		<< optfound_pct[BB][M1][judm] << "\t" << optfound_pct[BB][M2][judm] << "\t" << optfound_pct[BB][M3][judm] << "\t"
+		<< endl;*/
+	}
+	/*ofst << "fnr \t"
+	<< "f[OB] \t d[OB] \t h[OB] \t t[OB] \t"
+	<< "cmp_give[OB][IMPROVED] \t"
+	<< "cmp_give[OB][EQUAL] \t"
+	<< "cmp_give[OB][NONIMPROVED] \t"
+	<< "f[BB] \t d[BB] \t h[BB] \t t[BB] \t"
+	<< "cmp_give[BB][IMPROVED] \t"
+	<< "cmp_give[BB][EQUAL] \t"
+	<< "cmp_give[BB][NONIMPROVED]"
+	<< endl;*/
+	cout << fnr << "\t"
+		<< f[OB] << "\t" << d[OB] << "\t" << h[OB] << "\t" << t[OB] << "\t"
+		<< cmp_give_result_total_cnt[OB][IMPROVED] << "\t"
+		<< cmp_give_result_total_cnt[OB][EQUAL] << "\t"
+		<< cmp_give_result_total_cnt[OB][NONIMPROVED] << "\t"
+		<< f[BB] << "\t" << d[BB] << "\t" << h[BB] << "\t" << t[BB] << "\t"
+		<< cmp_give_result_total_cnt[BB][IMPROVED] << "\t"
+		<< cmp_give_result_total_cnt[BB][EQUAL] << "\t"
+		<< cmp_give_result_total_cnt[BB][NONIMPROVED]
+		<< endl;
+	cout << fnr << "\t"
+		<< f[OB] << "\t" << d[OB] << "\t" << h[OB] << "\t" << t[OB] << "\t"
+		<< cmp_give_result_total_cnt[OB][IMPROVED] << "\t"
+		<< cmp_give_result_total_cnt[OB][EQUAL] << "\t"
+		<< cmp_give_result_total_cnt[OB][NONIMPROVED] << "\t"
+		<< f[BB] << "\t" << d[BB] << "\t" << h[BB] << "\t" << t[BB] << "\t"
+		<< cmp_give_result_total_cnt[BB][IMPROVED] << "\t"
+		<< cmp_give_result_total_cnt[BB][EQUAL] << "\t"
+		<< cmp_give_result_total_cnt[BB][NONIMPROVED]
+		<< endl;
+
+}
+void Analyze::total_info()
+{
+	if (whe_input_table_head)
+		ofst << "fnr \t"
+		<< "f[OB] \t d[OB] \t h[OB] \t t[OB] \t"
+		<< "cmp_give[OB][IMPROVED] \t"
+		<< "cmp_give[OB][EQUAL] \t"
+		<< "cmp_give[OB][NONIMPROVED] \t"
+		<< "f[BB] \t d[BB] \t h[BB] \t t[BB] \t"
+		<< "cmp_give[BB][IMPROVED] \t"
+		<< "cmp_give[BB][EQUAL] \t"
+		<< "cmp_give[BB][NONIMPROVED]"
+		<< endl;
+	ofs << "(*iter)->filename  \t  (*iter)->n  \t  (*iter)->m  \t"
+		<< "(*iter)->opt_obj_given  \t  (*iter)->opt_obj_real  \t"
+		<< "(*iter)->rand_seed  \t  (*iter)->sol_info_vec.size()  \t"
+		<< "obj[0]  \t  obj[1]  \t  obj[2]  \t"
+		<< "iteration[0]  \t  iteration[1]  \t  iteration[2]  \t"
+		<< "tm[0]  \t  tm[1]  \t  tm[2]  \t"
+		<< "cmp_give_result_cnt[0]  \t  cmp_give_result_cnt[1]  \t  cmp_give_result_cnt[2]  \t"
+		<< "cmp_real_result_cnt[0]  \t  cmp_real_result_cnt[1]  \t  cmp_real_result_cnt[2]  \t"
+		<< endl;
+	for (vector<InstanceInfo*>::iterator iter = insinfo_vec.begin();
+	iter != insinfo_vec.end(); iter++)
+	{
+		cout << (*iter)->filename << ", " << (*iter)->m << ", " << (*iter)->n << ", "
+			<< (*iter)->opt_obj_given << ", " << (*iter)->opt_obj_real << ", "
+			<< (*iter)->rand_seed << ", " << (*iter)->sol_info_vec.size() << endl;
+		double obj[3];
+		int iteration[3];
+		int tm[3];
+		int cmp_give_result_cnt[3] = { 0,0,0 }, cmp_real_result_cnt[3] = { 0,0,0 };
+		for (vector<SolutionInfo*>::iterator iter_sol = (*iter)->sol_info_vec.begin();
+		iter_sol != (*iter)->sol_info_vec.end(); iter_sol++)
+		{
+			if (iter_sol == (*iter)->sol_info_vec.begin())
+			{
+				obj[MIN] = obj[AVG] = obj[MAX] = (*iter_sol)->obj;
+				iteration[MIN] = iteration[AVG] = iteration[MAX] = (*iter_sol)->iteration;
+				tm[MIN] = tm[AVG] = tm[MAX] = (*iter_sol)->tm;
+			}
+			else
+			{
+				obj[AVG] += (*iter_sol)->obj;
+				iteration[AVG] += (*iter_sol)->iteration;
+				tm[AVG] += (*iter_sol)->tm;
+
+				if (obj[MIN] - (*iter_sol)->obj > MIN_EQUAL)
+					obj[MIN] = (*iter_sol)->obj;
+				if ((*iter_sol)->obj - obj[MAX] > MIN_EQUAL)
+					obj[MAX] = (*iter_sol)->obj;
+
+				if (iteration[MIN] - (*iter_sol)->iteration > MIN_EQUAL)
+					iteration[MIN] = (*iter_sol)->iteration;
+				if ((*iter_sol)->iteration - iteration[MAX] > MIN_EQUAL)
+					iteration[MAX] = (*iter_sol)->iteration;
+
+				if (tm[MIN] - (*iter_sol)->tm > MIN_EQUAL)
+					tm[MIN] = (*iter_sol)->tm;
+				if ((*iter_sol)->tm - tm[MAX] > MIN_EQUAL)
+					tm[MAX] = (*iter_sol)->tm;
+			}
+
+			if ((*iter_sol)->result_improve == 1)
+			{
+				cmp_real_result_cnt[EQUAL] += 1;// equal
+			}
+			else if ((*iter_sol)->result_improve == 2)
+			{
+				cmp_real_result_cnt[IMPROVED] += 1;// improved
+			}
+			else
+				cmp_real_result_cnt[NONIMPROVED] += 1;// not improved
+
+			if ((*iter_sol)->given_result_improve == 1)
+			{
+				cmp_give_result_cnt[EQUAL] += 1;// equal
+			}
+			else if ((*iter_sol)->given_result_improve == 2)
+			{
+				cmp_give_result_cnt[IMPROVED] += 1;// improved
+			}
+			else
+				cmp_give_result_cnt[NONIMPROVED] += 1;// not improved		
+		}
+		obj[AVG] /= (*iter)->sol_info_vec.size();
+		iteration[AVG] /= (*iter)->sol_info_vec.size();
+		tm[AVG] /= (*iter)->sol_info_vec.size();
 		ofs << (*iter)->filename << "\t" << (*iter)->n << "\t" << (*iter)->m << "\t"
 			<< (*iter)->opt_obj_given << "\t" << (*iter)->opt_obj_real << "\t"
 			<< (*iter)->rand_seed << "\t" << (*iter)->sol_info_vec.size() << "\t"
@@ -216,6 +463,17 @@ void Analyze::total_info()
 			<< tm[MIN] << "\t" << tm[AVG] << "\t" << tm[MAX] << "\t"
 			<< cmp_give_result_cnt[IMPROVED] << "\t" << cmp_give_result_cnt[EQUAL] << "\t" << cmp_give_result_cnt[NONIMPROVED] << "\t"
 			<< cmp_real_result_cnt[IMPROVED] << "\t" << cmp_real_result_cnt[EQUAL] << "\t" << cmp_real_result_cnt[NONIMPROVED] << endl;
+		if (cmp_give_result_cnt[IMPROVED] > 0)
+		{
+			/*ofst << (*iter)->filename << "\t" << (*iter)->n << "\t" << (*iter)->m << "\t"
+				<< (*iter)->opt_obj_given << "\t" << (*iter)->opt_obj_real << "\t"
+				<< (*iter)->rand_seed << "\t" << (*iter)->sol_info_vec.size() << "\t"
+				<< obj[MIN] << "\t" << obj[AVG] << "\t" << obj[MAX] << "\t"
+				<< iteration[MIN] << "\t" << iteration[AVG] << "\t" << iteration[MAX] << "\t"
+				<< tm[MIN] << "\t" << tm[AVG] << "\t" << tm[MAX] << "\t"
+				<< cmp_give_result_cnt[IMPROVED] << "\t" << cmp_give_result_cnt[EQUAL] << "\t" << cmp_give_result_cnt[NONIMPROVED] << "\t"
+				<< cmp_real_result_cnt[IMPROVED] << "\t" << cmp_real_result_cnt[EQUAL] << "\t" << cmp_real_result_cnt[NONIMPROVED] << endl;*/
+		}
 		int set_index = OB;
 		if ((*iter)->n > 14)	// OB set
 			set_index = BB;
@@ -303,7 +561,7 @@ void Analyze::total_info()
 			str_jm = "OBJ_JUDGE";
 		if (judm == JM::TIME_JUDGE)
 			str_jm = "TIME_JUDGE";
-		ofst << fnr << "\t" << str_jm << "\t"
+		/*ofst << fnr << "\t" << str_jm << "\t"
 			<< optfound_pct[OB][P1][judm] << "\t" << optfound_pct[OB][P2][judm] << "\t"
 			<< optfound_pct[OB][D1][judm] << "\t" << optfound_pct[OB][D2][judm] << "\t"
 			<< optfound_pct[OB][M1][judm] << "\t" << optfound_pct[OB][M2][judm] << "\t" << optfound_pct[OB][M3][judm] << "\t"
@@ -312,19 +570,10 @@ void Analyze::total_info()
 			<< optfound_pct[BB][D1][judm] << "\t" << optfound_pct[BB][D2][judm] << "\t"
 			<< optfound_pct[BB][M1][judm] << "\t" << optfound_pct[BB][M2][judm] << "\t" << optfound_pct[BB][M3][judm] << "\t"
 			<< optfound_pct[BB][M1][judm] << "\t" << optfound_pct[BB][M2][judm] << "\t" << optfound_pct[BB][M3][judm] << "\t"
-			<< endl;
+			<< endl;*/
 	}
-	/*ofst << "fnr \t"
-		<< "f[OB] \t d[OB] \t h[OB] \t t[OB] \t"
-		<< "cmp_give[OB][IMPROVED] \t"
-		<< "cmp_give[OB][EQUAL] \t"
-		<< "cmp_give[OB][NONIMPROVED] \t"
-		<< "f[BB] \t d[BB] \t h[BB] \t t[BB] \t"
-		<< "cmp_give[BB][IMPROVED] \t"
-		<< "cmp_give[BB][EQUAL] \t"
-		<< "cmp_give[BB][NONIMPROVED]"
-		<< endl;*/
-	/*ofst << fnr << "\t"
+	
+	ofst << fnr << "\t"
 		<< f[OB] << "\t" << d[OB] << "\t" << h[OB] << "\t" << t[OB] << "\t"
 		<< cmp_give_result_total_cnt[OB][IMPROVED] << "\t"
 		<< cmp_give_result_total_cnt[OB][EQUAL] << "\t"
@@ -333,7 +582,7 @@ void Analyze::total_info()
 		<< cmp_give_result_total_cnt[BB][IMPROVED] << "\t"
 		<< cmp_give_result_total_cnt[BB][EQUAL] << "\t"
 		<< cmp_give_result_total_cnt[BB][NONIMPROVED]
-		<< endl;*/
+		<< endl;
 	cout << fnr << "\t"
 		<< f[OB] << "\t" << d[OB] << "\t" << h[OB] << "\t" << t[OB] << "\t"
 		<< cmp_give_result_total_cnt[OB][IMPROVED] << "\t"
@@ -512,7 +761,7 @@ void analyze_total_file(string fnr,string fnw)
 int main(int argc, char **argv)
 {
 	char *rgv[] = { "",	//0
-		"_fn","total_results9_p13_itr2000_ptr50_rm1_ns0_r1_r20",	//1,2
+		"_fn","total_results13_p13_rnt20_itr2000_ptr50_rm1_ns0_t2_cp70_r1_r20",	//1,2
 		"_if","instance\\BB_Problem_BestSolution\\",	//3,4	
 		"_of","results\\",//5,6	
 		"_p","13",		//7,8
@@ -533,9 +782,10 @@ int main(int argc, char **argv)
 		argv_map[string(argv[i])] = string(argv[i + 1]);
 	string fnr, fnw,fnwt;
 	fnr = argv_map.at("_of") + argv_map.at("_fn")+".txt";
-	fnw = argv_map.at("_of") + argv_map.at("_fn") + "_analyze2.txt";
-	fnwt = argv_map.at("_of") + "optfound_percent2.txt";
+	fnw = argv_map.at("_of") + argv_map.at("_fn") + "_analyze3.txt";
+	fnwt = argv_map.at("_of") + "total_information13.txt";
 	Analyze *an = new Analyze(fnr, fnw,fnwt);	
+	//an->para_setting();
 	an->total_info();
 	//analyze_total_file(fnr,fnw);
 	system("pause");

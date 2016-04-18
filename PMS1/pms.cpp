@@ -784,7 +784,7 @@ void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, 
 	int opt_cnt = 0, imp_cnt = 0, non_imp_cnt = 0;
 	obj_type sum_obj = 0;
 	int rt = time(NULL);
-	rt = 1460573277;
+	//rt = 1460573277;
 	srand(rt);
 	ofs << ins_name << "\t" << n << "\t" << m << "\t"
 		<< obj_given << "\t" << c[sol_index_opt][0] << "\t" << rt << endl;
@@ -800,6 +800,13 @@ void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, 
 		//save_solution(sol_index_best, sol_index_opt, 0, run_cnt);
 		end_tm = clock();
 		int min_obj_iter = 0;
+		if (n <= 14)	// find the optimal solution for instances in OB set
+		{
+			if (abs(c[sol_index_best][0] - c[sol_index_opt][0]) <= MIN_EQUAL)
+				iteration = 0;
+			else 
+				iteration = INT16_MAX;
+		}
 		for (int i = 0; i < iteration; i++)
 		{
 			replace_solution(sol_index_ptr, sol_index_cur);
@@ -812,8 +819,8 @@ void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, 
 				//save_solution(sol_index_best, sol_index_opt, i, rc);
 				min_obj_iter = i;
 				end_tm = clock();
-				/*if (abs(c[sol_index_best][0] - c[sol_index_opt][0]) <= MIN_EQUAL)
-					break;*/
+				if (n <= 14 && abs(c[sol_index_best][0] - c[sol_index_opt][0]) <= MIN_EQUAL)
+					break;	// find the optimal solution for instances in OB set
 			}
 			if (c[sol_index_cur][0] - c[sol_index_ptr][0] > MIN_EQUAL ||
 				rand() % 100 <= (100 * exp((c[sol_index_cur][0] - c[sol_index_ptr][0]) / temperature)))
@@ -829,20 +836,20 @@ void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, 
 void run_algorithm(int argc, char **argv,string input_file)
 {
 	char *rgv[] = { "",	//0
-		"_fn","total_results10",	//1,2
+		"_fn","para_setting_ptr",	//1,2
 		"_if","instance\\BB_Problem_BestSolution\\",	//3,4	
 		"_of","results\\",//5,6	
 		"_p","13",		//7,8
-		"_r","20",		//9,10
+		"_r","100",		//9,10
 		"_itr","2000",	//11,12
-		"_ptr","50",	//13,14
+		"_ptr","33",	//13,14
 		"_rm","1",	//15,16
 		"_ns","0",	//17,18		
 		"_r1","1",	//19,20
 		"_r2","20",	//21,22
 		"_ws","0",	//23,24
 		"_t","2",	//25,26
-		"_cp","90"	//27,28
+		"_cp","70"	//27,28
 	};
 	/*argc = sizeof(rgv) / sizeof(rgv[0]);
 	argv = rgv;*/
@@ -855,10 +862,13 @@ void run_algorithm(int argc, char **argv,string input_file)
 	string fnr = argv_map.at("_if") + input_file;
 	string fnw = argv_map.at("_of") + argv_map.at("_fn") +
 		"_p" + argv_map.at("_p") +
+		"_rnt" + argv_map.at("_r") +
 		"_itr" + argv_map.at("_itr") +
 		"_ptr" + argv_map.at("_ptr") +
 		"_rm" + argv_map.at("_rm") +
 		"_ns" + argv_map.at("_ns") +
+		"_t" + argv_map.at("_t") +
+		"_cp" + argv_map.at("_cp") +
 		"_r" + argv_map.at("_r1") +
 		"_r" + argv_map.at("_r2") + ".txt";
 	
@@ -923,8 +933,9 @@ int main(int argc, char **argv)
 	//rt = 1460296365;//1459751481
 	//cout << rt << endl;
 	//srand(rt);
-	string ins_name="Ni_50_4-2_2_9";
-	/*run_algorithm(argc,argv,ins_name); */
+	string ins_name="Ni_50_7-1_2_1";
+	/*run_algorithm(argc,argv,ins_name); 
+	return 0;*/
 	/*ins_name = "Ni_50_10-1_1_13";
 	run_algorithm(ins_name);*/
 	vector<vector<int>> n_vec = { { 8, 11, 14},{20,35,50 } };
