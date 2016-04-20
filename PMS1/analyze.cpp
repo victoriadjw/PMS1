@@ -1,4 +1,4 @@
-#if 1
+#if 0
 #include <boost/lambda/lambda.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>
@@ -14,9 +14,9 @@ const double MIN_EQUAL = 0.001;
 class SolutionInfo
 {
 	//ofs << run_cnt << "\t"
-	//	//<< c[sol_index_opt][0] << "\t"
-	//	<< c[sol_index][0] << "\t"
-	//	<< mm[sol_index] << "\t"
+	//	//<< c[si_opt][0] << "\t"
+	//	<< c[si][0] << "\t"
+	//	<< mm[si] << "\t"
 	//	<< iterration << "\t"
 	//	<< (end_tm - start_tm) /*/ CLOCKS_PER_SEC*/ << "\t"
 	//	<< given_result_improve << "\t"
@@ -683,9 +683,9 @@ void analyze_total_file(string fnr,string fnw)
 		iter_sol != (*iter)->sol_info_vec.end(); iter_sol++)
 		{
 			//ofs << run_cnt << "\t"
-			//	//<< c[sol_index_opt][0] << "\t"
-			//	<< c[sol_index][0] << "\t"
-			//	<< mm[sol_index] << "\t"
+			//	//<< c[si_opt][0] << "\t"
+			//	<< c[si][0] << "\t"
+			//	<< mm[si] << "\t"
 			//	<< iterration << "\t"
 			//	<< (end_tm - start_tm) /*/ CLOCKS_PER_SEC*/ << "\t"
 			//	<< given_result_improve << "\t"
@@ -761,7 +761,7 @@ void analyze_total_file(string fnr,string fnw)
 int main(int argc, char **argv)
 {
 	char *rgv[] = { "",	//0
-		"_fn","total_results13_p13_rnt20_itr2000_ptr50_rm1_ns0_t2_cp70_r1_r20",	//1,2
+		"_fn","tr_p13_itr2000_ptr50_rm2_ns0_t2_cp70_r1_r20",	//1,2
 		"_if","instance\\BB_Problem_BestSolution\\",	//3,4	
 		"_of","results\\",//5,6	
 		"_p","13",		//7,8
