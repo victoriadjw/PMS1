@@ -38,6 +38,7 @@ private:
 	const double MIN_EQUAL = 0.001;
 	int rand_seed;
 	ofstream ofs;
+	int ls_cnt1, ls_cnt2;
 public:
 	enum R_Mode { EXAC = 0, MINP, MAXP, MIND, MAXD, MINPDD, MAXPDD, MINPD, MAXPD, RANDOM, SIZE };
 	enum Cmp_Mode { GREATER, LESS };
@@ -63,6 +64,11 @@ public:
 	void local_search_hybrid1(int, int, NS_Mode);
 	void local_search_ejection_chain(int, int, NS_Mode);
 	void iterated_local_search(int, int, R_Mode, NS_Mode, int, int);
+	void local_search_recursion(int);
+	void divide_and_conquer(int si, int *sub_mach, int sub_m, obj_type &sub_obj);
+	void local_search1(int si, int *sub_mach, int sub_m, obj_type &sub_obj);
+	void insert1(int si, int *sub_mach, int mm_j, int mo, obj_type &sub_obj);
+	void swap1(int si, int *sub_mach, int mm_j, int mo, int mo_j, obj_type &sub_obj);
 	void replace_solution(int, int);
 	void perturb(int, int);
 	void swap(int, int, int, int, int);
@@ -838,6 +844,166 @@ void PMS::local_search_hybrid1(int si, int si_local, NS_Mode ns)
 		}
 	}
 }
+void PMS::local_search_recursion(int si)
+{
+	int *sub_mach = new int[m + 1];
+	for (int i = 0; i < m + 1; i++)
+		sub_mach[i] = 1;
+	int sub_m = m;
+	obj_type sub_obj = c[si][0];
+	sub_mach[0] = mm[si];
+	ls_cnt1 = ls_cnt2 = 0;
+	divide_and_conquer(si, sub_mach, sub_m, sub_obj);
+	//cout << sub_obj << endl;
+	mm[si] = sub_mach[0];
+	c[si][0] = sub_obj;
+	//check_solution(si);
+	//cout << ls_cnt1 << "\t" << ls_cnt2 << endl;
+}
+
+void PMS::divide_and_conquer(int si, int *sub_mach, int sub_m, obj_type &sub_obj)
+{
+	if(sub_m==2)
+	{
+		local_search1(si, sub_mach, sub_m, sub_obj);
+		//ls_cnt1 += 1;
+		return;
+	}
+	int eliminate_mach = sub_mach[0];
+	sub_mach[sub_mach[0]] = 0;
+	sub_m -= 1;
+	sub_obj = 0;
+	for (int i = 1; i <= m; i++)
+	{
+		if (sub_mach[i] == 0)
+			continue;
+		if (c[si][i] > sub_obj)
+		{
+			sub_obj = c[si][i];
+			sub_mach[0] = i;
+		}
+	}
+	divide_and_conquer(si, sub_mach, sub_m, sub_obj);
+	sub_mach[eliminate_mach] = 1;
+	sub_m += 1;
+	sub_obj = 0;
+	for (int i = 1; i <= m; i++)
+	{
+		if (sub_mach[i] == 0)
+			continue;
+		if (c[si][i] > sub_obj)
+		{
+			sub_obj = c[si][i];
+			sub_mach[0] = i;
+		}
+	}
+	local_search1(si, sub_mach, m, sub_obj);
+	//ls_cnt2 += 1;
+}
+void PMS::local_search1(int si, int *sub_mach, int sub_m, obj_type &sub_obj)
+{
+	int si_local = 10;
+	replace_solution(si_local, si);
+	obj_type sub_obj_local = sub_obj;
+	bool is_still_improved = true;
+	while (is_still_improved)
+	{
+		is_still_improved = false;
+		bool is_mm_unchanged = true;
+		int pre_mm = sub_mach[0];
+		for (int jm = 0 % s[si_local][sub_mach[0]][0] + 1, jm_r = 1;
+		jm_r <= s[si_local][sub_mach[0]][0] && is_mm_unchanged;
+			jm_r++, jm = jm%s[si_local][sub_mach[0]][0] + 1)
+		{
+			for (int i = 0 % m + 1, i_r = 1; i_r <= m && is_mm_unchanged; i_r++, i = i%m + 1)
+			{
+				if (i == sub_mach[0]||sub_mach[i]==0)
+					continue;
+				insert1(si_local, sub_mach, jm, i, sub_obj_local);
+				if (sub_obj - sub_obj_local > MIN_EQUAL)
+				{
+					replace_solution(si, si_local);
+					sub_obj = sub_obj_local;
+					is_still_improved = true;
+				if (pre_mm != sub_mach[0])
+					is_mm_unchanged = false;
+					break;
+				}
+				else
+				{
+					replace_solution(si_local, si);
+					sub_obj_local = sub_obj;
+					sub_mach[0] = pre_mm;
+				}
+				for (int j = 0 % (s[si_local][i][0] == 0 ? 1 : s[si_local][i][0]) + 1, j_r = 1;
+				j_r <= s[si_local][i][0] && is_mm_unchanged;
+					j_r++, j = j%s[si_local][i][0] + 1)
+				{
+					swap1(si_local, sub_mach, jm, i, j,sub_obj_local);
+					//check_solution(si_local);
+					if (sub_obj - sub_obj_local> MIN_EQUAL)
+					{
+						replace_solution(si, si_local);
+						sub_obj = sub_obj_local;
+						is_still_improved = true;
+					if (pre_mm != sub_mach[0])
+						is_mm_unchanged = false;
+						break;
+					}
+					else
+					{
+						replace_solution(si_local, si);
+						sub_obj_local = sub_obj;
+						sub_mach[0] = pre_mm;
+					}
+					//check_solution(si_local);
+				}
+			}
+		}
+	}
+}
+void PMS::swap1(int si, int *sub_mach, int mm_j, int mo, int mo_j, obj_type &sub_obj)
+{
+	int temp = s[si][sub_mach[0]][mm_j];
+	s[si][sub_mach[0]][mm_j] = s[si][mo][mo_j];
+	s[si][mo][mo_j] = temp;
+	sort(s[si][sub_mach[0]] + 1, s[si][sub_mach[0]] + s[si][sub_mach[0]][0] + 1, cmpSort(r[sub_mach[0]]));
+	calculate_completion_time(si, sub_mach[0]);
+	sort(s[si][mo] + 1, s[si][mo] + s[si][mo][0] + 1, cmpSort(r[mo]));
+	calculate_completion_time(si, mo);
+	sub_obj = 0;
+	for (int i = 1; i <= m; i++)
+	{
+		if (sub_mach[i] == 1 && (c[si][i] - sub_obj) > MIN_EQUAL)
+			sub_obj = c[si][i];
+	}
+	for (int i = 1; i <= m; i++)
+	{
+		if (sub_mach[i] == 1 && abs(c[si][i] - sub_obj) <= MIN_EQUAL)
+			sub_mach[0] = i;
+	}
+}
+void PMS::insert1(int si, int *sub_mach, int mm_j, int mo,obj_type &sub_obj)
+{
+	s[si][mo][0] += 1;
+	s[si][mo][s[si][mo][0]] = s[si][sub_mach[0]][mm_j];
+	remove_job(si, sub_mach[0], s[si][sub_mach[0]][mm_j]);
+	calculate_completion_time(si, sub_mach[0]);
+	sort(s[si][mo] + 1, s[si][mo] + s[si][mo][0] + 1, cmpSort(r[mo]));
+	calculate_completion_time(si, mo);
+	//calculate_obj(si);
+	sub_obj = 0;
+	for (int i = 1; i <= m; i++)
+	{
+		if (sub_mach[i] == 1 && (c[si][i] - sub_obj) > MIN_EQUAL)
+			sub_obj = c[si][i];
+	}
+	for (int i = 1; i <= m; i++)
+	{
+		if (sub_mach[i] == 1 && abs(c[si][i] - sub_obj) <= MIN_EQUAL)
+			sub_mach[0] = i;
+	}
+}
 void PMS::perturb(int si, int ptr_rate)
 {
 	for (int i = 0; i < s[si][mm[si]][0] * ptr_rate*0.01; i++)
@@ -888,7 +1054,7 @@ void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, 
 	int opt_cnt = 0, imp_cnt = 0, non_imp_cnt = 0;
 	obj_type sum_obj = 0;
 	int rt = time(NULL);
-	rt = 1461068961;
+	//rt = 1461168856;
 	srand(rt);
 	ofs << ins_name << "\t" << n << "\t" << m << "\t"
 		<< obj_given << "\t" << c[si_opt][0] << "\t" << rt << endl;
@@ -898,9 +1064,13 @@ void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, 
 	{
 		start_tm = clock();
 		init_solution(si_cur, si_local, r_mode);	//PMS::MINPDD
+		//local_search_hybrid(si_cur, si_local, ns);
 		//display_solution(si_cur);
-		local_search_ejection_chain(si_cur, si_local, ns);
+		local_search_recursion(si_cur);
+		//local_search_hybrid(si_cur, si_local, ns);
+		//local_search_ejection_chain(si_cur, si_local, ns);
 		replace_solution(si_best, si_cur);
+		//return;
 		//save_solution(si_best, si_opt, 0, run_cnt);
 		end_tm = clock();
 		int min_obj_iter = 0;
@@ -916,7 +1086,8 @@ void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, 
 			replace_solution(si_ptr, si_cur);
 			perturb(si_ptr, perturb_rate);
 			//cout << c[si_best][0] << ", " << c[si_cur][0] << endl;
-			local_search_ejection_chain(si_ptr, si_local, ns);
+			//local_search_ejection_chain(si_ptr, si_local, ns);
+			local_search_recursion(si_ptr);
 			if (c[si_best][0] - c[si_ptr][0]>MIN_EQUAL)
 			{
 				replace_solution(si_best, si_ptr);
@@ -925,13 +1096,14 @@ void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, 
 				end_tm = clock();
 				if (n <= 14 && abs(c[si_best][0] - c[si_opt][0]) <= MIN_EQUAL)
 					break;	// find the optimal solution for instances in OB set
+				cout << rc << "\t" << c[si_best][0] << endl;
 			}
 			if (c[si_cur][0] - c[si_ptr][0] > MIN_EQUAL ||
 				rand() % 100 <= (100 * exp((c[si_cur][0] - c[si_ptr][0]) / temperature)))
 				replace_solution(si_cur, si_ptr);
 			temperature *= control_para;
 		}
-		//check_solution(si_best); 
+		check_solution(si_best); 
 		save_solution(si_best, si_opt, min_obj_iter, rc);
 		/*display_solution(si_opt);*/
 		//display_solution(si_best);		
@@ -1024,7 +1196,7 @@ int main(int argc, char **argv)
 		"_p","13",		// population size
 		"_itr","2000",	// max iteration of ILS
 		"_ptr","50",	// perturbation rate 
-		"_rm","1",	// construction rules for initial solution
+		"_rm","9",	// construction rules for initial solution
 		"_ns","0",	// neighborhood search, 0:swap, 1:insert	
 		"_r1","1",	// run cnt from
 		"_r2","20",	// run cnt to
