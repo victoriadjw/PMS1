@@ -1,4 +1,4 @@
-#if 1
+#if 0
 #define _CRT_SECURE_NO_WARNINGS
 #include<iostream>
 #include<fstream>
@@ -32,6 +32,7 @@ private:
 
 	perf_type **r;	// exact sort accordance
 	perf_type **charact;	// characteristics sort accordance
+	int *sub_mach;	// sub problem machine, 0 is the makespan machine
 
 	clock_t start_tm, end_tm;
 	class cmpSort;
@@ -112,6 +113,7 @@ PMS::PMS(string file_input, string file_output, int sol_num)
 	p = new proc_type *[m + 1];
 	d = new dete_type *[m + 1];
 	r = new perf_type*[m + 1];
+	sub_mach = new int[m + 1];
 	for (int i = 0; i <= m; i++)
 	{
 		p[i] = new proc_type[n + 1];
@@ -239,6 +241,7 @@ PMS::~PMS()
 	delete[]s;
 	delete[]c;
 	delete[]mm;
+	delete[]sub_mach;
 
 	for (int i = 1; i < R_Mode::SIZE; i++)
 		delete[]charact[i];
@@ -381,7 +384,7 @@ void PMS::check_solution(int si)
 	{
 		cout << "ERROR, si: " << si
 			<< ", multiple job index" << endl;
-		display_solution(si);
+		//display_solution(si);
 		system("pause");
 	}
 }
@@ -846,7 +849,6 @@ void PMS::local_search_hybrid1(int si, int si_local, NS_Mode ns)
 }
 void PMS::local_search_recursion(int si)
 {
-	int *sub_mach = new int[m + 1];
 	for (int i = 0; i < m + 1; i++)
 		sub_mach[i] = 1;
 	int sub_m = m;
@@ -911,7 +913,7 @@ void PMS::local_search1(int si, int *sub_mach, int sub_m, obj_type &sub_obj)
 		is_still_improved = false;
 		bool is_mm_unchanged = true;
 		int pre_mm = sub_mach[0];
-		for (int jm = 0 % s[si_local][sub_mach[0]][0] + 1, jm_r = 1;
+		for (int jm = 0 % (s[si_local][sub_mach[0]][0]==0?1: s[si_local][sub_mach[0]][0]) + 1, jm_r = 1;
 		jm_r <= s[si_local][sub_mach[0]][0] && is_mm_unchanged;
 			jm_r++, jm = jm%s[si_local][sub_mach[0]][0] + 1)
 		{
@@ -1096,14 +1098,14 @@ void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, 
 				end_tm = clock();
 				if (n <= 14 && abs(c[si_best][0] - c[si_opt][0]) <= MIN_EQUAL)
 					break;	// find the optimal solution for instances in OB set
-				cout << rc << "\t" << c[si_best][0] << endl;
+				//cout << rc << "\t" << c[si_best][0] << endl;
 			}
 			if (c[si_cur][0] - c[si_ptr][0] > MIN_EQUAL ||
 				rand() % 100 <= (100 * exp((c[si_cur][0] - c[si_ptr][0]) / temperature)))
 				replace_solution(si_cur, si_ptr);
 			temperature *= control_para;
 		}
-		check_solution(si_best); 
+		//check_solution(si_best); 
 		save_solution(si_best, si_opt, min_obj_iter, rc);
 		/*display_solution(si_opt);*/
 		//display_solution(si_best);		
@@ -1203,15 +1205,15 @@ int main(int argc, char **argv)
 		"_ws","0",	// whe_save_sol_seq
 		"_t","2",	// initial temperature T
 		"_cp","70",	// control para cp, T=T*cp
-		"_vi1","1",		"_vi2","2",
-		"_ni1","2",		"_ni2","3",
+		"_vi1","0",		"_vi2","2",
+		"_ni1","0",		"_ni2","3",
 		"_vj1","0",		"_vj2","2",
-		"_mj1","1",		"_mj2","2",
-		"_pi1","1",		"_pi2","1",
-		"_di1","2",		"_di2","2",
-		"_ins1","1",	"_ins2","1"
+		"_mj1","0",		"_mj2","3",
+		"_pi1","1",		"_pi2","2",
+		"_di1","1",		"_di2","2",
+		"_ins1","1",	"_ins2","25"
 	};
-	argc = sizeof(rgv) / sizeof(rgv[0]); argv = rgv;
+	//argc = sizeof(rgv) / sizeof(rgv[0]); argv = rgv;
 	std::map<string, string> argv_map;
 	for (int i = 1; i < sizeof(rgv_ins) / sizeof(rgv_ins[0]); i += 2)
 		argv_map[string(rgv_ins[i])] = string(rgv_ins[i + 1]);
