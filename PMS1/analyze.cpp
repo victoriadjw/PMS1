@@ -761,7 +761,7 @@ void analyze_total_file(string fnr,string fnw)
 int main(int argc, char **argv)
 {
 	char *rgv[] = { "",	//0
-		"_fn","tr4_p13_itr2000_ptr50_rm1_ns0_t2_cp70_r1_r20",	//1,2
+		"_fn","tr6_p13_itr2000_ptr50_rm1_ns0_t2_cp5_r1_r20",	//1,2
 		"_if","instance\\BB_Problem_BestSolution\\",	//3,4	
 		"_of","results\\",//5,6	
 		"_p","13",		//7,8
