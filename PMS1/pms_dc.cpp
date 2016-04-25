@@ -274,7 +274,7 @@ void PMS::display_solution(int si)
 	for (int i = 1; i <= m; i++)
 	{
 		obj_type ir = 0;
-		cout <<effe_mach[si][i]<<"\t"<< s[si][i].size() - 1 << ", " << c[si][i].back() << ": ";
+		cout <<i<<", "<<effe_mach[si][i]<<", "<< s[si][i].size() - 1 << ", " << c[si][i].back() << ": ";
 		for (int j = 1; j <s[si][i].size(); j++)
 		{
 			cout << s[si][i][j] /*<< ", " << r[i][s[si][i][j]] */ << "\t";
@@ -807,7 +807,7 @@ void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, 
 	int si_opt = 0, si_best = 1,
 		si_cur = 2, si_local = 3, si_ptr = 4;
 	int opt_cnt = 0, imp_cnt = 0, non_imp_cnt = 0;
-	obj_type sum_obj = 0;
+	obj_type sum_delta_obj = 0;
 	int rt = time(NULL);
 	//rt = 1461506514;
 	srand(rt);
@@ -828,7 +828,7 @@ void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, 
 		//local_search_ejection_chain(si_cur, si_local, ns);
 		replace_solution(si_best, si_cur);
 		//return;
-		cout << rc << "\t0\t" << sol_obj[si_best] << endl;
+		//cout << rc << "\t0\t" << sol_obj[si_best] << endl;
 		//save_solution(si_best, si_opt, 0, run_cnt);
 		end_tm = clock();
 		int min_obj_iter = 0;
@@ -853,35 +853,45 @@ void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, 
 				replace_solution(si_best, si_ptr);
 				min_obj_iter = i;
 				end_tm = clock();
-				cout << rc << "\t" << i<<"\t"<<sol_obj[si_best] << endl;
+				//cout << rc << "\t" << i<<"\t"<<sol_obj[si_best] << endl;
 				if (n <= 14 && abs(sol_obj[si_best] - sol_obj[si_opt]) <= MIN_EQUAL)
 					break;	
 			}
-			/*int accept = 0;
+			int accept = 0;
 			int rand_num = rand() % 100;
-			obj_type obj_si_cur = sol_obj[si_cur];*/
-			if (sol_obj[si_cur] - sol_obj[si_ptr] > MIN_EQUAL ||
-				rand() % 100 <= (control_para*100))
+			obj_type obj_si_cur = sol_obj[si_cur];
+			//if (sol_obj[si_cur] - sol_obj[si_ptr] > MIN_EQUAL ||
+			//	rand() % 100 <= (control_para*100))
+			//{
+			//	replace_solution(si_cur, si_ptr);
+			//	//accept = 1;
+			//}
+			/*if (sol_obj[si_cur] - sol_obj[si_ptr] > MIN_EQUAL ||
+				rand_num <= (100 * exp((sol_obj[si_cur] - sol_obj[si_ptr]) / temperature)))
 			{
 				replace_solution(si_cur, si_ptr);
-				//accept = 1;
-			}
-			//cout << temperature << "\t"
-			//	<< obj_si_cur <<"\t"
-			//	<<sol_obj[si_ptr]<<"\t"
-			//	<<rand_num<<"\t"
-			//	//<< (100 * exp((obj_si_cur - sol_obj[si_ptr]) / (1*temperature)))<<"\t"
-			//	<<accept
-			//	<< endl;
+				accept = 1;
+			}*/
+			replace_solution(si_cur, si_best);
+			/*cout << temperature << "\t"
+				<< obj_si_cur <<"\t"
+				<<sol_obj[si_ptr]<<"\t"
+				<<rand_num<<"\t"
+				<< (100 * exp((obj_si_cur - sol_obj[si_ptr]) / (1*temperature)))<<"\t"
+				<<accept
+				<< endl;*/
 			/*temperature *= control_para;
-			if (temperature < 0.1)
+			if (temperature < 1)
 				temperature = temperature0;*/
 		}
 		//check_solution(si_best); 
 		save_solution(si_best, si_opt, min_obj_iter, rc);
+		cout << sol_obj[si_best] << "\t" << sol_obj[si_opt] - sol_obj[si_best] << endl;
+		sum_delta_obj += (sol_obj[si_opt] - sol_obj[si_best]);
 		/*display_solution(si_opt);*/
 		//display_solution(si_best);		
 	}
+	cout << sum_delta_obj << endl;
 }
 void PMS::test()
 {
@@ -975,15 +985,15 @@ int main(int argc, char **argv)
 		"_r1","1",	// run cnt from
 		"_r2","20",	// run cnt to
 		"_ws","0",	// whe_save_sol_seq
-		"_t","2",	// initial temperature T
-		"_cp","10",	// control para cp, T=T*cp
+		"_t","50",	// initial temperature T
+		"_cp","90",	// control para cp, T=T*cp
 		"_vi1","1",		"_vi2","2",
 		"_ni1","2",		"_ni2","3",
 		"_vj1","0",		"_vj2","2",
-		"_mj1","2",		"_mj2","3",
+		"_mj1","1",		"_mj2","2",
 		"_pi1","1",		"_pi2","1",
-		"_di1","1",		"_di2","1",
-		"_ins1","1",	"_ins2","1"
+		"_di1","2",		"_di2","2",
+		"_ins1","2",	"_ins2","2"
 	};
 	argc = sizeof(rgv) / sizeof(rgv[0]); argv = rgv;
 	std::map<string, string> argv_map;
