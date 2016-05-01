@@ -9,7 +9,7 @@
 #include<math.h>
 #include<map>
 #include<vector>
-//#define DEBUG 
+#define DEBUG 
 using namespace std;
 typedef double proc_type;	// type of processing time
 typedef double dete_type;	// type of deterioration effect
@@ -813,13 +813,8 @@ void PMS::local_search_hybrid_tri_insert(int si)
 						if (i2 == mm[si]||!effe_mach[si][i2])
 							continue;
 						int pos_remove = 0, pos_add_i2 = 0, cur_job1 = s[si][i1][j1];
-						//ls_cnt2 += 1;
-						//if (ls_cnt2 == 1727)
-							//check_solution(si);
-						//int si_temp = sol_num - 5;
-						//replace_solution(si_temp, si);
 						add_job(si, i2, pos_add_i2, cur_job1);	// try to add cur_job1 from i1 to i2
-						check_solution_machine(si, i2);
+						//check_solution_machine(si, i2);
 						if(sol_obj[si]-c[si][i2].back()>MIN_EQUAL)
 						{
 							remove_job(si, i1, pos_remove, cur_job1);	// actually remove cur_job1 from i1 
@@ -828,7 +823,7 @@ void PMS::local_search_hybrid_tri_insert(int si)
 								int pos_add_i1 = 0;
 								int job_mm = s[si][mm[si]][jm];
 								add_job(si, i1, pos_add_i1, job_mm);	// add job mm to i1
-								check_solution_machine(si, i1);
+								//check_solution_machine(si, i1);
 								if (sol_obj[si] - c[si][i1].back()>MIN_EQUAL)
 								{
 									int pos_remove_mm = 0;
@@ -844,7 +839,7 @@ void PMS::local_search_hybrid_tri_insert(int si)
 							if (is_still_improved == false)
 							{
 								add_job(si, i1, pos_remove, cur_job1);	// repair i1 by adding cur_job1 to i1
-								check_solution_machine(si, i1);
+								//check_solution_machine(si, i1);
 							}
 						}
 						if (is_still_improved == false)
@@ -946,38 +941,50 @@ void PMS::local_search_hybrid_tri_swap(int si)
 					{
 						if (i2 == mm[si] || !effe_mach[si][i2])
 							continue;
-						int pos_remove = 0, pos_add_i2 = 0, cur_job1 = s[si][i1][j1];
-						add_job(si, i2, pos_add_i2, cur_job1);	// try to add cur_job1 from i1 to i2
-						check_solution_machine(si, i2);
-						if (sol_obj[si] - c[si][i2].back()>MIN_EQUAL)
+						for (int j2 = 1; j2<s[si][i2].size() && is_triple_swap; j2++)
 						{
-							remove_job(si, i1, pos_remove, cur_job1);	// actually remove cur_job1 from i1 
-							for (int jm = 1; jm < s[si][mm[si]].size() && is_triple_swap; jm++)
+							int job_i1 = s[si][i1][j1], job_i2 = s[si][i2][j2];
+							int pos_remove_i1 = j1, pos_remove_i2 = j2, pos_add_i1 = 0, pos_add_i2 = 0;
+							exchange_job(si, i1, pos_add_i1, pos_remove_i1, job_i2, job_i1);
+							if (sol_obj[si] - c[si][i1].back()>MIN_EQUAL)
 							{
-								int pos_add_i1 = 0;
-								int job_mm = s[si][mm[si]][jm];
-								add_job(si, i1, pos_add_i1, job_mm);	// add job mm to i1
-								check_solution_machine(si, i1);
-								if (sol_obj[si] - c[si][i1].back()>MIN_EQUAL)
+								exchange_job(si, i2, pos_add_i2, pos_remove_i2, job_i1, job_i2);
+								if (sol_obj[si] - c[si][i2].back()>MIN_EQUAL)
 								{
-									int pos_remove_mm = 0;
-									remove_job(si, mm[si], pos_remove_mm, job_mm);	// remove job mm from mm
-									calculate_obj(si);
-									//check_solution(si);
-									is_still_improved = true;
-									is_triple_swap = false;
-									break;
+									for (int jm = 1; jm < s[si][mm[si]].size() && is_triple_swap; jm++)
+									{
+										int job_mm = s[si][mm[si]][jm], pos_add_i = 0;
+										add_job(si, i1, pos_add_i, job_mm);	// try to add job_mm to i1
+										if (sol_obj[si] - c[si][i1].back()>MIN_EQUAL)
+										{
+											int pos_remove_mm = 0;
+											remove_job(si, mm[si], pos_remove_mm, job_mm);	// actually remove job_mm from mm
+											calculate_obj(si);
+											is_still_improved = true;
+											is_triple_swap = false;
+											break;
+										}
+										remove_job(si, i1, pos_add_i, job_mm);	// can not improve, remove job_mm from i1
+										pos_add_i = 0;
+										add_job(si, i2, pos_add_i, job_mm);	// try to add job_mm to i2
+										if (sol_obj[si] - c[si][i2].back() > MIN_EQUAL)
+										{
+											int pos_remove_mm = 0;
+											remove_job(si, mm[si], pos_remove_mm, job_mm);	// actually remove job_mm from mm
+											calculate_obj(si);
+											is_still_improved = true;
+											is_triple_swap = false;
+											break;
+										}
+										remove_job(si, i2, pos_add_i, job_mm);	// can not improve, remove job_mm from i2
+									}
 								}
-								remove_job(si, i1, pos_add_i1, job_mm);	// remove job mm from i1
+								if (is_still_improved == false)
+									exchange_job(si, i2, pos_remove_i2, pos_add_i2, job_i2, job_i1);
 							}
 							if (is_still_improved == false)
-							{
-								add_job(si, i1, pos_remove, cur_job1);	// repair i1 by adding cur_job1 to i1
-								check_solution_machine(si, i1);
-							}
+								exchange_job(si, i1, pos_remove_i1, pos_add_i1, job_i1, job_i2);								
 						}
-						if (is_still_improved == false)
-							remove_job(si, i2, pos_add_i2, cur_job1);
 					}
 				}
 			}
@@ -1003,7 +1010,8 @@ void PMS::divide_and_conquer(int si,int mach_num)
 	if (mach_num == 2)
 	{
 		//local_search_hybrid(si);
-		local_search_hybrid_tri_insert(si);
+		//local_search_hybrid_tri_insert(si);
+		local_search_hybrid_tri_swap(si);
 		//ls_cnt1 += 1;
 		/*cout << "exe 2: ";
 		for (int i = 1; i <= m; i++)
@@ -1110,7 +1118,8 @@ void PMS::divide_and_conquer(int si,int mach_num)
 		}
 	}
 	//local_search_hybrid(si);
-	local_search_hybrid_tri_insert(si);
+	//local_search_hybrid_tri_insert(si);
+	local_search_hybrid_tri_swap(si);
 	ls_cnt2 += 1;	
 	//check_solution(si);
 }
@@ -1209,15 +1218,15 @@ void PMS::hma(int iteration, int perturb_rate, R_Mode r_mode, NS_Mode ns, int ru
 	int opt_cnt = 0, imp_cnt = 0, non_imp_cnt = 0;
 	obj_type sum_delta_obj = 0;
 	int rt = time(NULL);
-	//rt = 1461862810;
+	//rt = 1462097984;
 	srand(rt);
 	ofs << ins_name << "\t" << n << "\t" << m << "\t"
 		<< obj_given << "\t" << sol_obj[si_opt] << "\t" << rt << endl;
 	cout << ins_name << "\t" << n << "\t" << m << "\t"
 		<< obj_given << "\t" << sol_obj[si_opt] << "\t" << rt << endl;
-	tabu_pool_update.resize(sol_num, 0);
 	for (rc = run_cnt_from; rc <= run_cnt_to; rc++)
 	{
+		tabu_pool_update.assign(sol_num, 0);
 		start_tm = clock();
 		init_solution(si_best, r_mode);
 		for (int p = 1; p <= sol_num - 10; p++)
@@ -1294,7 +1303,7 @@ void PMS::hma(int iteration, int perturb_rate, R_Mode r_mode, NS_Mode ns, int ru
 		sum_delta_obj += (sol_obj[si_opt] - sol_obj[si_best]);
 #endif
 		/*display_solution(si_opt);*/
-		//display_solution(si_best);		
+		//display_solution(si_best);	
 	}
 #ifdef DEBUG
 	cout << sum_delta_obj << endl;
