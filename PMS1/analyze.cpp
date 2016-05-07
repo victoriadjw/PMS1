@@ -1,4 +1,4 @@
-#if 0
+#if 1
 #include <boost/lambda/lambda.hpp>
 #include <boost/algorithm/string/split.hpp>
 #include <boost/algorithm/string/classification.hpp>
@@ -44,7 +44,7 @@ public:
 };
 class Analyze {
 public:
-	Analyze(string, string,string);
+	Analyze(string, string,string,string);
 	void total_info();
 	void para_setting();
 	double f[2], d[2], h[2], t[2];
@@ -56,12 +56,12 @@ public:
 	const enum PM {P1,P2,D1,D2,M1,M2,M3,N1,N2,N3};
 	const enum JM { HR_JUDGE, DEV_JUDGE, TIME_JUDGE, OBJ_JUDGE };
 private:
-	string fnr,fnw,fnwt;
+	string fnr,fnw,fnwt,fnw_best;
 	bool whe_input_table_head;
-	ofstream ofs,ofst;
+	ofstream ofs,ofst,ofs_best;
 	vector<InstanceInfo*>insinfo_vec; 
 };
-Analyze::Analyze(string _fnr, string _fnw,string _fnwt):fnr(_fnr),fnw(_fnw),fnwt(_fnwt)
+Analyze::Analyze(string _fnr, string _fnw,string _fnwt,string _fnw_best):fnr(_fnr),fnw(_fnw),fnwt(_fnwt),fnw_best(_fnw_best)
 {
 	ifstream ifs(fnwt);
 	if (!ifs.is_open())
@@ -86,11 +86,21 @@ Analyze::Analyze(string _fnr, string _fnw,string _fnwt):fnr(_fnr),fnw(_fnw),fnwt
 	ofst.open(fnwt, ios::app | ios::out);
 	if (!ofst.is_open())
 	{
-		cout << fnwt << endl; perror("file_output.");
+		cout << fnwt << endl; perror("file_output fnwt.");
 		exit(0);
 	}
 	ofst.setf(ios::fixed, ios::floatfield);
 	ofst.precision(6);
+
+	ofs_best.open(fnw_best, ios::app | ios::out);
+	if (!ofs_best.is_open())
+	{
+		cout << fnw_best << endl; perror("file_output fnw best.");
+		exit(0);
+	}
+	ofs_best.setf(ios::fixed, ios::floatfield);
+	ofs_best.precision(6);
+
 	string strline;
 	vector<string> fields_vec,ins_name_vec;
 	//vector<InstanceInfo*>insinfo_vec;
@@ -369,6 +379,7 @@ void Analyze::para_setting()
 }
 void Analyze::total_info()
 {
+	ofs_best << fnr << "\t";
 	if (whe_input_table_head)
 		ofst << "fnr \t"
 		<< "f[OB] \t d[OB] \t h[OB] \t t[OB] \t"
@@ -463,6 +474,7 @@ void Analyze::total_info()
 			<< tm[MIN] << "\t" << tm[AVG] << "\t" << tm[MAX] << "\t"
 			<< cmp_give_result_cnt[IMPROVED] << "\t" << cmp_give_result_cnt[EQUAL] << "\t" << cmp_give_result_cnt[NONIMPROVED] << "\t"
 			<< cmp_real_result_cnt[IMPROVED] << "\t" << cmp_real_result_cnt[EQUAL] << "\t" << cmp_real_result_cnt[NONIMPROVED] << endl;
+		ofs_best << (*iter)->filename << "\t";
 		if (cmp_give_result_cnt[IMPROVED] > 0)
 		{
 			/*ofst << (*iter)->filename << "\t" << (*iter)->n << "\t" << (*iter)->m << "\t"
@@ -593,6 +605,7 @@ void Analyze::total_info()
 		<< cmp_give_result_total_cnt[BB][EQUAL] << "\t"
 		<< cmp_give_result_total_cnt[BB][NONIMPROVED]
 		<< endl;
+	ofs_best << endl;
 
 }
 void analyze_total_file(string fnr,string fnw)
@@ -761,7 +774,7 @@ void analyze_total_file(string fnr,string fnw)
 int main(int argc, char **argv)
 {
 	char *rgv[] = { "",	//0
-		"_fn","hma6_tri_insert_p20_itr2000_ptr50_rm1_ns0_t50_cp95_r1_r20",	//1,2
+		"_fn","hma17_pms_puqd_is_p20_itr2000_ptr50_rm1_ns0_t50_cp95_r1_r20",	//1,2
 		"_if","instance\\BB_Problem_BestSolution\\",	//3,4	
 		"_of","results\\",//5,6	
 		"_p","13",		//7,8
@@ -780,11 +793,12 @@ int main(int argc, char **argv)
 	std::map<string, string> argv_map;
 	for (int i = 1; i < sizeof(rgv) / sizeof(rgv[0]); i += 2)
 		argv_map[string(argv[i])] = string(argv[i + 1]);
-	string fnr, fnw,fnwt;
+	string fnr, fnw,fnwt,fnw_best;
 	fnr = argv_map.at("_of") + argv_map.at("_fn")+".txt";
 	fnw = argv_map.at("_of") + argv_map.at("_fn") + "_analyze3.txt";
-	fnwt = argv_map.at("_of") + "total_information13.txt";
-	Analyze *an = new Analyze(fnr, fnw,fnwt);	
+	fnwt = argv_map.at("_of") + "total_information14.txt";
+	fnw_best = argv_map.at("_of") + "best_results.txt";
+	Analyze *an = new Analyze(fnr, fnw,fnwt,fnw_best);	
 	//an->para_setting();
 	an->total_info();
 	//analyze_total_file(fnr,fnw);
