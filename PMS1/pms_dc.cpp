@@ -7,9 +7,10 @@
 #include<iomanip>
 #include<algorithm>
 #include<math.h>
+#include<float.h>
 #include<map>
 #include<vector>
-//#define DEBUG 
+#define DEBUG 
 using namespace std;
 typedef double proc_type;	// type of processing time
 typedef double dete_type;	// type of deterioration effect
@@ -46,7 +47,7 @@ public:
 	enum R_Mode { EXAC = 0, MINP, MAXP, MIND, MAXD, MINPDD, MAXPDD, MINPD, MAXPD, RANDOM, SIZE };
 	enum Cmp_Mode { GREATER, LESS };
 	enum NS_Mode { SWAP, INSERT };
-	int whe_save_sol_seq, alpha_cx_ptr, non_popu;
+	int whe_save_sol_seq, alpha_cx_ptr, non_popu, whe_dc, ls_method, pu_method, cx_method;
 	string ins_name;
 	double control_para, temperature, pu_beta;
 	PMS(string, string, int);
@@ -218,7 +219,7 @@ PMS::PMS(string file_input, string file_output, int _sol_num):sol_num(_sol_num)
 		calculate_completion_time(si_opt, i);
 	}
 	calculate_obj(si_opt);
-	if (abs(obj_given - sol_obj[si_opt]) > MIN_EQUAL)
+	if (fabs(obj_given - sol_obj[si_opt]) > MIN_EQUAL)
 	{
 		cout << "the given optimal solution is wrong."
 			<< obj_given << " " << sol_obj[si_opt] << endl;
@@ -343,7 +344,7 @@ void PMS::check_solution(int si)
 			system("pause");
 		}
 	}
-	if (abs(max_cl - sol_obj[si])>MIN_EQUAL||max_cl_mach_index!=mm[si])
+	if (fabs(max_cl - sol_obj[si])>MIN_EQUAL||max_cl_mach_index!=mm[si])
 	{
 		cout << "ERROR, or mm is wrong, si: " << si
 			<< ", real obj: " << max_cl << " " << sol_obj[si] << endl;
@@ -526,13 +527,13 @@ void PMS::replace_solution(int dest, int src)
 }void PMS::save_solution(int si, int si_opt, int iterration, int run_cnt)
 {
 	int result_improve, given_result_improve;
-	if (abs(sol_obj[si] - sol_obj[si_opt]) <= MIN_EQUAL)
+	if (fabs(sol_obj[si] - sol_obj[si_opt]) <= MIN_EQUAL)
 		result_improve = 1;	// equal
 	else if (sol_obj[si_opt] - sol_obj[si] > MIN_EQUAL)
 		result_improve = 2;	// improved
 	else
 		result_improve = 0;	// not improved
-	if (abs(sol_obj[si] - obj_given) <= MIN_EQUAL)
+	if (fabs(sol_obj[si] - obj_given) <= MIN_EQUAL)
 		given_result_improve = 1;
 	else if (obj_given - sol_obj[si] > MIN_EQUAL)
 		given_result_improve = 2;
@@ -1202,10 +1203,14 @@ void PMS::divide_and_conquer(int si,int mach_num)
 {
 	if (mach_num == 2)
 	{
-		//local_search_hybrid(si);
-		//local_search_hybrid_tri_insert(si);
-		//local_search_hybrid_tri_swap(si);
-		local_search_hybrid_tri_insert_swap(si);
+		if (ls_method == 0)
+			local_search_hybrid(si);
+		else if (ls_method == 1)
+			local_search_hybrid_tri_insert(si);
+		else if (ls_method == 2)
+			local_search_hybrid_tri_swap(si);
+		else if (ls_method == 3)
+			local_search_hybrid_tri_insert_swap(si);
 		//ls_cnt1 += 1;
 		/*cout << "exe 2: ";
 		for (int i = 1; i <= m; i++)
@@ -1311,10 +1316,14 @@ void PMS::divide_and_conquer(int si,int mach_num)
 			mm[si] = i;
 		}
 	}
-	//local_search_hybrid(si);
-	//local_search_hybrid_tri_insert(si);
-	//local_search_hybrid_tri_swap(si);
-	local_search_hybrid_tri_insert_swap(si);
+	if (ls_method == 0)
+		local_search_hybrid(si);
+	else if (ls_method == 1)
+		local_search_hybrid_tri_insert(si);
+	else if (ls_method == 2)
+		local_search_hybrid_tri_swap(si);
+	else if (ls_method == 3)
+		local_search_hybrid_tri_insert_swap(si);
 	ls_cnt2 += 1;	
 	//check_solution(si);
 }
@@ -1348,7 +1357,7 @@ void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, 
 		int min_obj_iter = 0;
 		if (n <= 14)	// find the optimal solution for instances in OB set
 		{
-			if (abs(sol_obj[si_best] - sol_obj[si_opt]) <= MIN_EQUAL)
+			if (fabs(sol_obj[si_best] - sol_obj[si_opt]) <= MIN_EQUAL)
 				iteration = 0;
 			else
 				iteration = INT16_MAX;
@@ -1367,7 +1376,7 @@ void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, 
 				replace_solution(si_best, si_ptr);
 				min_obj_iter = i;
 				//cout << rc << "\t" << i<<"\t"<<sol_obj[si_best] << endl;
-				if (n <= 14 && abs(sol_obj[si_best] - sol_obj[si_opt]) <= MIN_EQUAL)
+				if (n <= 14 && fabs(sol_obj[si_best] - sol_obj[si_opt]) <= MIN_EQUAL)
 					break;	
 			}
 			int accept = 0;
@@ -1430,23 +1439,31 @@ void PMS::hma(int iteration, int perturb_rate, R_Mode r_mode, NS_Mode ns, int ru
 		for (int p = 1; p <= sol_num - non_popu; p++)
 		{
 			init_solution(p, r_mode);
-			//divide_and_conquer(p, m);
-			//local_search_hybrid(p);
-			//local_search_hybrid_tri_insert(p);
-			//local_search_hybrid_tri_swap(p);
-			local_search_hybrid_tri_insert_swap(p);
+			if(whe_dc==1)
+				divide_and_conquer(p, m);
+			else
+			{
+				if(ls_method==0)
+					local_search_hybrid(p);
+				else if (ls_method == 1)
+					local_search_hybrid_tri_insert(p);
+				else if (ls_method == 2)
+					local_search_hybrid_tri_swap(p);
+				else if (ls_method == 3)
+					local_search_hybrid_tri_insert_swap(p);
+			}
 			if (sol_obj[p] < sol_obj[si_best])
 			{
 				end_tm = clock();
 				replace_solution(si_best, p);
-				if (n <= 14 && abs(sol_obj[si_best] - sol_obj[si_opt]) <= MIN_EQUAL)
+				if (n <= 14 && fabs(sol_obj[si_best] - sol_obj[si_opt]) <= MIN_EQUAL)
 					break;
 			}
 		}
 		int min_obj_iter = 0;
 		if (n <= 14)	// find the optimal solution for instances in OB set
 		{
-			if (abs(sol_obj[si_best] - sol_obj[si_opt]) <= MIN_EQUAL)
+			if (fabs(sol_obj[si_best] - sol_obj[si_opt]) <= MIN_EQUAL)
 				iteration = 0;
 			else
 				iteration = INT16_MAX;
@@ -1459,27 +1476,38 @@ void PMS::hma(int iteration, int perturb_rate, R_Mode r_mode, NS_Mode ns, int ru
 				p2 = rand() % (sol_num - non_popu) + 1;
 			if (rand() % 100 < alpha_cx_ptr)
 			{
-				//gpx(si_offspring, p1, p2);
-				//ufx(si_offspring, p1, p2);
-				mpx(si_offspring, p1, p2);
+				if (cx_method == 0)
+					ufx(si_offspring, p1, p2);
+				else if (cx_method == 1)
+					mpx(si_offspring, p1, p2);
+				else if (cx_method == 2)
+					gpx(si_offspring, p1, p2);
 			}
 			else
 			{
 				replace_solution(si_offspring, p1);
 				perturb1(si_offspring, perturb_rate);
 			}
-			//divide_and_conquer(si_offspring, m);
-			//local_search_hybrid(si_offspring);
-			//local_search_hybrid_tri_insert(si_offspring);
-			//local_search_hybrid_tri_swap(si_offspring);
-			local_search_hybrid_tri_insert_swap(si_offspring);
+			if(whe_dc==1)
+				divide_and_conquer(si_offspring, m);
+			else
+			{
+				if (ls_method == 0)
+					local_search_hybrid(si_offspring);
+				else if (ls_method == 1)
+					local_search_hybrid_tri_insert(si_offspring);
+				else if (ls_method == 2)
+					local_search_hybrid_tri_swap(si_offspring);
+				else if (ls_method == 3)
+					local_search_hybrid_tri_insert_swap(si_offspring);
+			}
 			if (sol_obj[si_best] - sol_obj[si_offspring]>MIN_EQUAL)
 			{
 				end_tm = clock();
 				replace_solution(si_best, si_offspring);
 				min_obj_iter = gen;
 				//cout << rc << "\t" << i<<"\t"<<sol_obj[si_best] << endl;
-				if (n <= 14 && abs(sol_obj[si_best] - sol_obj[si_opt]) <= MIN_EQUAL)
+				if (n <= 14 && fabs(sol_obj[si_best] - sol_obj[si_opt]) <= MIN_EQUAL)
 					break;
 			}
 			/*cout << rc << "\t" << gen << "\t";
@@ -1488,8 +1516,10 @@ void PMS::hma(int iteration, int perturb_rate, R_Mode r_mode, NS_Mode ns, int ru
 			cout << sol_obj[si_offspring] << "\t" << sol_obj[si_best] << "\t";*/
 			/*if (rc == 6&&(gen==32||gen==33))
 				check_solution(si_offspring);*/
-			//pool_update(si_offspring, gen, 0);
-			pool_update_qd(si_offspring, gen, 0);
+			if (pu_method == 0)
+				pool_update(si_offspring, gen, 0);
+			else if (pu_method == 1)
+				pool_update_qd(si_offspring, gen, 0);
 			//cout << endl;
 			/*cout << temperature << "\t"
 			<< obj_si_cur <<"\t"
@@ -1748,7 +1778,7 @@ void PMS::pool_update(int offspring, int gen, int p2)
 			equ_cnt = 1;
 			p_worst = i;
 		}
-		else if (abs(sol_obj[i] - obj_worst) <= MIN_EQUAL)
+		else if (fabs(sol_obj[i] - obj_worst) <= MIN_EQUAL)
 		{
 			equ_cnt += 1;
 			if (rand() % equ_cnt == 0)
@@ -1875,14 +1905,19 @@ void PMS::test()
 void run_algorithm(std::map<string, string> &argv_map, string ins_name)
 {
 	string fnr = argv_map.at("_if") + ins_name;
-	string fnw = argv_map.at("_of") + argv_map.at("_px") +
+	string fnw = argv_map.at("_of") /*+ argv_map.at("_exe_name")*/ + argv_map.at("_px") +
+		"_dc" + argv_map.at("_dc") +
+		"_ls" + argv_map.at("_ls") +
+		"_ox" + argv_map.at("_xo") +
+		"_pu" + argv_map.at("_pu") +
 		"_p" + argv_map.at("_p") +
+		"_np" + argv_map.at("_non_popu") +
 		"_itr" + argv_map.at("_itr") +
 		"_ptr" + argv_map.at("_ptr") +
 		"_rm" + argv_map.at("_rm") +
-		"_ns" + argv_map.at("_ns") +
-		"_t" + argv_map.at("_t") +
-		"_cp" + argv_map.at("_cp") +
+		//"_ns" + argv_map.at("_ns") +
+		"_alpha" + argv_map.at("_cx") +
+		"_beta" + argv_map.at("_pu_beta") +
 		"_r" + argv_map.at("_r1") +
 		"_r" + argv_map.at("_r2") + ".txt";
 	PMS *pms = new PMS(fnr, fnw, stoi(argv_map.at("_p")));//Ni_14_4-1_1_15
@@ -1893,6 +1928,10 @@ void run_algorithm(std::map<string, string> &argv_map, string ins_name)
 	pms->alpha_cx_ptr = stoi(argv_map.at("_cx"));
 	pms->non_popu = stoi(argv_map.at("_non_popu"));
 	pms->pu_beta = stoi(argv_map.at("_pu_beta"))*0.01;
+	pms->whe_dc = stoi(argv_map.at("_dc"));
+	pms->ls_method = stoi(argv_map.at("_ls"));
+	pms->pu_method = stoi(argv_map.at("_pu"));
+	pms->cx_method = stoi(argv_map.at("_xo"));
 	//pms->test();
 	//pms->display_problem();
 	//pms->display_solution(0);
@@ -1931,7 +1970,9 @@ int main(int argc, char **argv)
 		"_ws","0", "_t","50",
 		"_cp","95", "_ns","0",
 		"_non_popu","10","_cx","30",
-		"_pu_beta","60",
+		"_pu_beta","60", "_px","hma",
+		"_dc","1", "_ls","3",
+		"_pu","1",	"_xo","2",
 
 		"_vi1","0",		"_vi2","2",
 		"_ni1","0",		"_ni2","3",
@@ -1957,6 +1998,10 @@ int main(int argc, char **argv)
 		"_cp","95",	// control para cp, T=T*cp
 		"_cx","30",	// crossover vs perturbation rate
 		"_pu_beta","60",	//pool update coefficient
+		"_dc", "1",	// whether use divide and conquer
+		"_ls", "3",	// local search method
+		"_pu", "1",	// pool update method
+		"_xo", "2",	// crossover method
 		"_vi1","1",		"_vi2","2",
 		"_ni1","2",		"_ni2","3",
 		"_vj1","0",		"_vj2","2",
@@ -1969,12 +2014,13 @@ int main(int argc, char **argv)
 	argc = sizeof(rgv) / sizeof(rgv[0]); argv = rgv;
 #endif
 	std::map<string, string> argv_map;
+	argv_map["_exe_name"] = argv[0];	// add the exe file name to argv map, to append to the output file name
 	for (int i = 1; i < sizeof(rgv_ins) / sizeof(rgv_ins[0]); i += 2)
 		argv_map[string(rgv_ins[i])] = string(rgv_ins[i + 1]);
 	for (int i = 1; i < argc; i += 2)
 		argv_map[string(argv[i])] = string(argv[i + 1]);
-	vector<vector<int>> n_vec = { { 8, 11, 14 },{ 20,35,50 } };
-	vector<vector<int>> m_vec = { { 2,3,4 },{ 4,7,10 } };
+	vector<vector<int>> n_vec{ { 8, 11, 14 }, { 20, 35, 50 } };
+	vector<vector<int>> m_vec{ { 2, 3, 4 }, { 4, 7, 10 } };
 	for (int vi = stoi(argv_map.at("_vi1")); vi < stoi(argv_map.at("_vi2")); vi++)	// 0, 2
 	{
 		for (int ni = stoi(argv_map.at("_ni1")); ni < stoi(argv_map.at("_ni2")); ni++)	// 0, 3
