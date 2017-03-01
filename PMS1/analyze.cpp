@@ -1,16 +1,36 @@
-#if 1
-#include <boost/lambda/lambda.hpp>
-#include <boost/algorithm/string/split.hpp>
-#include <boost/algorithm/string/classification.hpp>
-#include <boost/lexical_cast.hpp>
+#if 0
+//#include <boost/lambda/lambda.hpp>
+//#include <boost/algorithm/string/split.hpp>
+//#include <boost/algorithm/string/classification.hpp>
+//#include <boost/lexical_cast.hpp>
 #include<iostream>
 #include<fstream>
 #include<vector>
 #include<string>
 #include<map>
+#include<math.h>
+#define DEBUG 
 using namespace std;
-using namespace boost;
+//using namespace boost;
 const double MIN_EQUAL = 0.001;
+
+//vector<T>
+template<typename T>
+void split_generic(vector<T> &v, const T & str, const T & delimiters) {
+	//vector<T> v;
+	v.clear();	// clear v to be empty
+	typename T::size_type start = 0;
+	auto pos = str.find_first_of(delimiters, start);
+	while (pos != T::npos) {
+		if (pos != start) // ignore empty tokens
+			v.emplace_back(str, start, pos - start);
+		start = pos + 1;
+		pos = str.find_first_of(delimiters, start);
+	}
+	if (start < str.length()) // ignore trailing delimiter
+		v.emplace_back(str, start, str.length() - start); // add what's left of the string
+	//return v;
+}
 class SolutionInfo
 {
 	//ofs << run_cnt << "\t"
@@ -44,26 +64,28 @@ public:
 };
 class Analyze {
 public:
-	Analyze(string, string,string,string);
+	Analyze(string, string, string, string, int);
 	void total_info();
 	void para_setting();
 	double f[2], d[2], h[2], t[2];
 	int cmp_give_result_total_cnt[2][3], set_ins_cnt[2];
 	double optfound_pct[2][10][4];
-	const enum SM {OB,BB};
-	const enum CM {IMPROVED,EQUAL,NONIMPROVED};
-	const enum BM {MIN,AVG,MAX};
-	const enum PM {P1,P2,D1,D2,M1,M2,M3,N1,N2,N3};
-	const enum JM { HR_JUDGE, DEV_JUDGE, TIME_JUDGE, OBJ_JUDGE };
+	enum SM {OB,BB};
+	enum CM {IMPROVED,EQUAL,NONIMPROVED};
+	enum BM {MIN,AVG,MAX};
+	enum PM {P1,P2,D1,D2,M1,M2,M3,N1,N2,N3};
+	enum JM { HR_JUDGE, DEV_JUDGE, TIME_JUDGE, OBJ_JUDGE };
+	int whe_save_each_file_result;
 private:
 	string fnr,fnw,fnwt,fnr_best;
 	bool whe_input_table_head;
 	ofstream ofs, ofst;
-	ifstream ofs_best;
+	ifstream ifs_best;
 	vector<InstanceInfo*>insinfo_vec; 
 	map<string, double> opt_best_map;
 };
-Analyze::Analyze(string _fnr, string _fnw,string _fnwt,string _fnr_best):fnr(_fnr),fnw(_fnw),fnwt(_fnwt),fnr_best(_fnr_best)
+Analyze::Analyze(string _fnr, string _fnw,string _fnwt,string _fnr_best,int _ws):
+	fnr(_fnr),fnw(_fnw),fnwt(_fnwt),fnr_best(_fnr_best),whe_save_each_file_result(_ws)
 {
 	ifstream ifs(fnwt);
 	if (!ifs.is_open())
@@ -74,17 +96,21 @@ Analyze::Analyze(string _fnr, string _fnw,string _fnwt,string _fnr_best):fnr(_fn
 	ifs.open(fnr);
 	if (!ifs.is_open())
 	{
-		cout << fnr << endl; perror("file_input.");
+		cout << fnr << endl; perror("file_input fnr.");
 		exit(0);
 	}
-	ofs.open(fnw, ios::trunc | ios::out);
-	if (!ofs.is_open())
+	if (whe_save_each_file_result)
 	{
-		cout << fnw << endl; perror("file_output.");
-		exit(0);
+		ofs.open(fnw, ios::trunc | ios::out);
+		if (!ofs.is_open())
+		{
+			cout << fnw << endl; perror("file_output fnw.");
+			exit(0);
+		}
+
+		ofs.setf(ios::fixed, ios::floatfield);
+		ofs.precision(6);
 	}
-	ofs.setf(ios::fixed, ios::floatfield);
-	ofs.precision(6);
 	ofst.open(fnwt, ios::app | ios::out);
 	if (!ofst.is_open())
 	{
@@ -94,19 +120,21 @@ Analyze::Analyze(string _fnr, string _fnw,string _fnwt,string _fnr_best):fnr(_fn
 	ofst.setf(ios::fixed, ios::floatfield);
 	ofst.precision(6);
 
-	ofs_best.open(fnr_best);
-	if (!ofs_best.is_open())
+	ifs_best.open(fnr_best);
+	if (!ifs_best.is_open())
 	{
-		cout << fnr_best << endl; perror("file_output fnw best.");
+		cout << fnr_best << endl; perror("file_output fnr_best.");
 		exit(0);
 	}
 
 	string strline;
 	vector<string> fields_vec,ins_name_vec;
-	while (getline(ofs_best, strline))
+	while (getline(ifs_best, strline))
 	{
-		split(fields_vec, strline, is_any_of("\t"));
-		opt_best_map[fields_vec[0]] = boost::lexical_cast<double>(fields_vec[1]);
+		/*split(fields_vec, strline, is_any_of("\t"));
+		opt_best_map[fields_vec[0]] = boost::lexical_cast<double>(fields_vec[1]);*/
+		split_generic<string>(fields_vec, strline, "\t");
+		opt_best_map[fields_vec[0]] = stod(fields_vec[1]);
 	}
 	vector<SolutionInfo*>  *sol_info_vec = new vector<SolutionInfo*>;
 	while (getline(ifs, strline))
@@ -117,30 +145,31 @@ Analyze::Analyze(string _fnr, string _fnw,string _fnwt,string _fnr_best):fnr(_fn
 		string filename;
 		int m, n, rand_seed;
 		double opt_obj_given, opt_obj_real;
-
-		split(fields_vec, strline, is_any_of("\t"));
-		/*for (vector<string>::iterator iter = fields_vec.begin();
-		iter != fields_vec.end(); iter++)
-		{
-		cout << *iter << "\t";
-
-		}*/
+		split_generic<string>(fields_vec, strline, "\t");
+		//split(fields_vec, strline, is_any_of("\t"));
+		
 		if (fields_vec.front().find("Ni_") != string::npos)
 		{
-			split(ins_name_vec, fields_vec[0], is_any_of("_-"));
+			//split(ins_name_vec, fields_vec[0], is_any_of("_-"));
+			split_generic<string>(ins_name_vec, fields_vec[0], "_-");
 			sol_info_vec = new vector<SolutionInfo*>;
 			insinfo = new InstanceInfo(fields_vec[0],
 				stoi(fields_vec[1]), stoi(fields_vec[2]),
 				stoi(ins_name_vec[3]), stoi(ins_name_vec[4]), stoi(ins_name_vec[5]),
-				boost::lexical_cast<double>(fields_vec[3]),
-				boost::lexical_cast<double>(fields_vec[4]), stoi(fields_vec[5]),
+				//boost::lexical_cast<double>(fields_vec[3]),
+				stod(fields_vec[3]),
+				//boost::lexical_cast<double>(fields_vec[4]),
+				stod(fields_vec[4]),
+				stoi(fields_vec[5]),
 				*sol_info_vec);
 			insinfo_vec.push_back(insinfo);
 		}
 		else
 		{
 			sol_info_vec->push_back(new SolutionInfo(stoi(fields_vec[0]),//run_cnt
-				boost::lexical_cast<double>(fields_vec[1]), stoi(fields_vec[2]),//obj,mm
+				//boost::lexical_cast<double>(fields_vec[1]), 
+				stod(fields_vec[1]),
+				stoi(fields_vec[2]),//obj,mm
 				stoi(fields_vec[3]), stoi(fields_vec[4]),//iter, tm
 				stoi(fields_vec[5]), stoi(fields_vec[6])//given_result_improve,result_improve
 				));
@@ -155,7 +184,7 @@ Analyze::Analyze(string _fnr, string _fnw,string _fnwt,string _fnr_best):fnr(_fn
 }
 void Analyze::para_setting()
 {
-	if (whe_input_table_head)
+	/*if (whe_input_table_head)
 		ofst << "fnr \t"
 		<< "(*iter)->filename  \t  (*iter)->n  \t  (*iter)->m  \t"
 		<< "(*iter)->opt_obj_given  \t  (*iter)->opt_obj_real  \t"
@@ -165,7 +194,7 @@ void Analyze::para_setting()
 		<< "tm[0]  \t  tm[1]  \t  tm[2]  \t"
 		<< "cmp_give_result_cnt[0]  \t  cmp_give_result_cnt[1]  \t  cmp_give_result_cnt[2]  \t"
 		<< "cmp_real_result_cnt[0]  \t  cmp_real_result_cnt[1]  \t  cmp_real_result_cnt[2]  \t"
-		<< endl;
+		<< endl;*/
 	for (vector<InstanceInfo*>::iterator iter = insinfo_vec.begin();
 	iter != insinfo_vec.end(); iter++)
 	{
@@ -175,6 +204,7 @@ void Analyze::para_setting()
 		double obj[3];
 		int iteration[3];
 		int tm[3];
+		int hit_cnt = 0;
 		int cmp_give_result_cnt[3] = { 0,0,0 }, cmp_real_result_cnt[3] = { 0,0,0 };
 		for (vector<SolutionInfo*>::iterator iter_sol = (*iter)->sol_info_vec.begin();
 		iter_sol != (*iter)->sol_info_vec.end(); iter_sol++)
@@ -206,7 +236,12 @@ void Analyze::para_setting()
 				if ((*iter_sol)->tm - tm[MAX] > MIN_EQUAL)
 					tm[MAX] = (*iter_sol)->tm;
 			}
-
+			if (fabs((*iter_sol)->obj - opt_best_map.at((*iter)->filename)) <= MIN_EQUAL)
+				hit_cnt += 1;
+			if (opt_best_map.at((*iter)->filename) - (*iter_sol)->obj > MIN_EQUAL)
+			{
+				system("pause");
+			}
 			if ((*iter_sol)->result_improve == 1)
 			{
 				cmp_real_result_cnt[EQUAL] += 1;// equal
@@ -232,32 +267,24 @@ void Analyze::para_setting()
 		obj[AVG] /= (*iter)->sol_info_vec.size();
 		iteration[AVG] /= (*iter)->sol_info_vec.size();
 		tm[AVG] /= (*iter)->sol_info_vec.size();
-		ofst << fnr << "\t" << (*iter)->filename << "\t" << (*iter)->n << "\t" << (*iter)->m << "\t"
+		if (whe_save_each_file_result)
+			ofst << fnr << "\t" << (*iter)->filename << "\t" << (*iter)->n << "\t" << (*iter)->m << "\t"
 			<< (*iter)->opt_obj_given << "\t" << (*iter)->opt_obj_real << "\t"
 			<< (*iter)->rand_seed << "\t" << (*iter)->sol_info_vec.size() << "\t"
 			<< obj[MIN] << "\t" << obj[AVG] << "\t" << obj[MAX] << "\t"
 			<< iteration[MIN] << "\t" << iteration[AVG] << "\t" << iteration[MAX] << "\t"
 			<< tm[MIN] << "\t" << tm[AVG] << "\t" << tm[MAX] << "\t"
 			<< cmp_give_result_cnt[IMPROVED] << "\t" << cmp_give_result_cnt[EQUAL] << "\t" << cmp_give_result_cnt[NONIMPROVED] << "\t"
-			<< cmp_real_result_cnt[IMPROVED] << "\t" << cmp_real_result_cnt[EQUAL] << "\t" << cmp_real_result_cnt[NONIMPROVED] << endl;
-		if (cmp_give_result_cnt[IMPROVED] > 0)
-		{
-			/*ofst << (*iter)->filename << "\t" << (*iter)->n << "\t" << (*iter)->m << "\t"
-			<< (*iter)->opt_obj_given << "\t" << (*iter)->opt_obj_real << "\t"
-			<< (*iter)->rand_seed << "\t" << (*iter)->sol_info_vec.size() << "\t"
-			<< obj[MIN] << "\t" << obj[AVG] << "\t" << obj[MAX] << "\t"
-			<< iteration[MIN] << "\t" << iteration[AVG] << "\t" << iteration[MAX] << "\t"
-			<< tm[MIN] << "\t" << tm[AVG] << "\t" << tm[MAX] << "\t"
-			<< cmp_give_result_cnt[IMPROVED] << "\t" << cmp_give_result_cnt[EQUAL] << "\t" << cmp_give_result_cnt[NONIMPROVED] << "\t"
-			<< cmp_real_result_cnt[IMPROVED] << "\t" << cmp_real_result_cnt[EQUAL] << "\t" << cmp_real_result_cnt[NONIMPROVED] << endl;*/
-		}
+			<< cmp_real_result_cnt[IMPROVED] << "\t" << cmp_real_result_cnt[EQUAL] << "\t" << cmp_real_result_cnt[NONIMPROVED] << "\t"
+			<< hit_cnt << endl;
 		int set_index = OB;
 		if ((*iter)->n > 14)	// OB set
 			set_index = BB;
 		f[set_index] += obj[AVG];
 		d[set_index] += (obj[AVG] - obj[MIN]) / obj[MIN];
 		double cur_instance_hr = (double)cmp_give_result_cnt[set_index == OB ? EQUAL : IMPROVED] / (*iter)->sol_info_vec.size();
-		h[set_index] += cur_instance_hr;
+		//h[set_index] += cur_instance_hr;
+		h[set_index] += ((double)hit_cnt / (*iter)->sol_info_vec.size());
 		t[set_index] += tm[AVG];
 		if (cmp_give_result_cnt[IMPROVED] > 0)
 			cmp_give_result_total_cnt[set_index][IMPROVED] += 1;
@@ -281,10 +308,10 @@ void Analyze::para_setting()
 			n_para = N2;
 		else
 			n_para = N3;
-		optfound_pct[set_index][p_para][HR_JUDGE] += cur_instance_hr;
-		optfound_pct[set_index][d_para][HR_JUDGE] += cur_instance_hr;
-		optfound_pct[set_index][m_para][HR_JUDGE] += cur_instance_hr;
-		optfound_pct[set_index][n_para][HR_JUDGE] += cur_instance_hr;
+		optfound_pct[set_index][p_para][HR_JUDGE] += /*cur_instance_hr;*/ ((double)hit_cnt / (*iter)->sol_info_vec.size());
+		optfound_pct[set_index][d_para][HR_JUDGE] += /*cur_instance_hr;*/ ((double)hit_cnt / (*iter)->sol_info_vec.size());
+		optfound_pct[set_index][m_para][HR_JUDGE] += /*cur_instance_hr;*/ ((double)hit_cnt / (*iter)->sol_info_vec.size());
+		optfound_pct[set_index][n_para][HR_JUDGE] += /*cur_instance_hr;*/ ((double)hit_cnt / (*iter)->sol_info_vec.size());
 		optfound_pct[set_index][p_para][DEV_JUDGE] += (obj[AVG] - obj[MIN]) / obj[MIN];
 		optfound_pct[set_index][d_para][DEV_JUDGE] += (obj[AVG] - obj[MIN]) / obj[MIN];
 		optfound_pct[set_index][m_para][DEV_JUDGE] += (obj[AVG] - obj[MIN]) / obj[MIN];
@@ -319,7 +346,7 @@ void Analyze::para_setting()
 			}
 		}
 	}
-	/*ofst << "fnr \t"
+	ofst << "fnr \tstr_jm\t"
 	<< "optfound_pct[OB][P1] \t optfound_pct[OB][P2] \t"
 	<< "optfound_pct[OB][D1] \t optfound_pct[OB][D2] \t"
 	<< "optfound_pct[OB][M1] \t optfound_pct[OB][M2] \t optfound_pct[OB][M3] \t"
@@ -328,7 +355,7 @@ void Analyze::para_setting()
 	<< "optfound_pct[BB][D1] \t optfound_pct[BB][D2] \t"
 	<< "optfound_pct[BB][M1] \t optfound_pct[BB][M2] \t optfound_pct[BB][M3] \t"
 	<< "optfound_pct[BB][N1] \t optfound_pct[BB][N2] \t optfound_pct[BB][N3] \t"
-	<< endl;*/
+	<< endl;
 	for (int judm = JM::HR_JUDGE; judm <= JM::OBJ_JUDGE; judm++)
 	{
 		string str_jm = "HR_JUDGE";
@@ -338,27 +365,17 @@ void Analyze::para_setting()
 			str_jm = "OBJ_JUDGE";
 		if (judm == JM::TIME_JUDGE)
 			str_jm = "TIME_JUDGE";
-		/*ofst << fnr << "\t" << str_jm << "\t"
+		ofst << fnr << "\t" << str_jm << "\t"
 		<< optfound_pct[OB][P1][judm] << "\t" << optfound_pct[OB][P2][judm] << "\t"
 		<< optfound_pct[OB][D1][judm] << "\t" << optfound_pct[OB][D2][judm] << "\t"
 		<< optfound_pct[OB][M1][judm] << "\t" << optfound_pct[OB][M2][judm] << "\t" << optfound_pct[OB][M3][judm] << "\t"
-		<< optfound_pct[OB][M1][judm] << "\t" << optfound_pct[OB][M2][judm] << "\t" << optfound_pct[OB][M3][judm] << "\t"
+		<< optfound_pct[OB][N1][judm] << "\t" << optfound_pct[OB][N2][judm] << "\t" << optfound_pct[OB][N3][judm] << "\t"
 		<< optfound_pct[BB][P1][judm] << "\t" << optfound_pct[BB][P2][judm] << "\t"
 		<< optfound_pct[BB][D1][judm] << "\t" << optfound_pct[BB][D2][judm] << "\t"
 		<< optfound_pct[BB][M1][judm] << "\t" << optfound_pct[BB][M2][judm] << "\t" << optfound_pct[BB][M3][judm] << "\t"
-		<< optfound_pct[BB][M1][judm] << "\t" << optfound_pct[BB][M2][judm] << "\t" << optfound_pct[BB][M3][judm] << "\t"
-		<< endl;*/
+		<< optfound_pct[BB][N1][judm] << "\t" << optfound_pct[BB][N2][judm] << "\t" << optfound_pct[BB][N3][judm] << "\t"
+		<< endl;
 	}
-	/*ofst << "fnr \t"
-	<< "f[OB] \t d[OB] \t h[OB] \t t[OB] \t"
-	<< "cmp_give[OB][IMPROVED] \t"
-	<< "cmp_give[OB][EQUAL] \t"
-	<< "cmp_give[OB][NONIMPROVED] \t"
-	<< "f[BB] \t d[BB] \t h[BB] \t t[BB] \t"
-	<< "cmp_give[BB][IMPROVED] \t"
-	<< "cmp_give[BB][EQUAL] \t"
-	<< "cmp_give[BB][NONIMPROVED]"
-	<< endl;*/
 	cout << fnr << "\t"
 		<< f[OB] << "\t" << d[OB] << "\t" << h[OB] << "\t" << t[OB] << "\t"
 		<< cmp_give_result_total_cnt[OB][IMPROVED] << "\t"
@@ -394,7 +411,8 @@ void Analyze::total_info()
 		<< "cmp_give[BB][EQUAL] \t"
 		<< "cmp_give[BB][NONIMPROVED]"
 		<< endl;
-	ofs << "(*iter)->filename  \t  (*iter)->n  \t  (*iter)->m  \t"
+	if (whe_save_each_file_result)
+		ofs << "(*iter)->filename  \t  (*iter)->n  \t  (*iter)->m  \t"
 		<< "(*iter)->opt_obj_given  \t  (*iter)->opt_obj_real  \t"
 		<< "(*iter)->rand_seed  \t  (*iter)->sol_info_vec.size()  \t"
 		<< "obj[0]  \t  obj[1]  \t  obj[2]  \t"
@@ -444,7 +462,7 @@ void Analyze::total_info()
 				if ((*iter_sol)->tm - tm[MAX] > MIN_EQUAL)
 					tm[MAX] = (*iter_sol)->tm;
 			}
-			if (abs((*iter_sol)->obj - opt_best_map.at((*iter)->filename)) <= MIN_EQUAL)
+			if (fabs((*iter_sol)->obj - opt_best_map.at((*iter)->filename)) <= MIN_EQUAL)
 				hit_cnt += 1;
 			if (opt_best_map.at((*iter)->filename) - (*iter_sol)->obj > MIN_EQUAL)
 			{
@@ -475,7 +493,8 @@ void Analyze::total_info()
 		obj[AVG] /= (*iter)->sol_info_vec.size();
 		iteration[AVG] /= (*iter)->sol_info_vec.size();
 		tm[AVG] /= (*iter)->sol_info_vec.size();
-		ofs << (*iter)->filename << "\t" << (*iter)->n << "\t" << (*iter)->m << "\t"
+		if(whe_save_each_file_result)
+			ofs << (*iter)->filename << "\t" << (*iter)->n << "\t" << (*iter)->m << "\t"
 			<< (*iter)->opt_obj_given << "\t" << (*iter)->opt_obj_real << "\t"
 			<< (*iter)->rand_seed << "\t" << (*iter)->sol_info_vec.size() << "\t"
 			<< obj[MIN] << "\t" << obj[AVG] << "\t" << obj[MAX] << "\t"
@@ -488,7 +507,7 @@ void Analyze::total_info()
 		if ((*iter)->n > 14)	// OB set
 			set_index = BB;
 		f[set_index] += obj[AVG];
-		d[set_index] += (obj[AVG] - obj[MIN]) / obj[MIN];
+		d[set_index] += ((obj[AVG] - obj[MIN]) / obj[MIN]);
 		double cur_instance_hr = (double)cmp_give_result_cnt[set_index == OB ? EQUAL : IMPROVED] / (*iter)->sol_info_vec.size();
 		//h[set_index] += cur_instance_hr;
 		h[set_index] += ((double)hit_cnt / (*iter)->sol_info_vec.size());
@@ -604,7 +623,6 @@ void Analyze::total_info()
 		<< cmp_give_result_total_cnt[BB][EQUAL] << "\t"
 		<< cmp_give_result_total_cnt[BB][NONIMPROVED]
 		<< endl;
-
 }
 void analyze_total_file(string fnr,string fnw)
 {
@@ -633,7 +651,8 @@ void analyze_total_file(string fnr,string fnw)
 		int m, n, rand_seed;
 		double opt_obj_given, opt_obj_real;
 
-		split(fields_vec, strline, is_any_of("\t"));
+		//split(fields_vec, strline, is_any_of("\t"));
+		split_generic<string>(fields_vec, strline, "\t");
 		/*for (vector<string>::iterator iter = fields_vec.begin();
 		iter != fields_vec.end(); iter++)
 		{
@@ -642,20 +661,21 @@ void analyze_total_file(string fnr,string fnw)
 		}*/
 		if (fields_vec.front().find("Ni_") != string::npos)
 		{
-			split(ins_name_vec, fields_vec[0], is_any_of("_-"));
+			//split(ins_name_vec, fields_vec[0], is_any_of("_-"));
+			split_generic<string>(ins_name_vec, fields_vec[0], "_-");
 			sol_info_vec = new vector<SolutionInfo*>;
 			insinfo = new InstanceInfo(fields_vec[0],
 				stoi(fields_vec[1]), stoi(fields_vec[2]), 
 				stoi(ins_name_vec[3]), stoi(ins_name_vec[4]), stoi(ins_name_vec[5]),
-				boost::lexical_cast<double>(fields_vec[3]),
-				boost::lexical_cast<double>(fields_vec[4]),stoi(fields_vec[5]),
+				stod(fields_vec[3]),
+				stod(fields_vec[4]),stoi(fields_vec[5]),
 				*sol_info_vec);
 			insinfo_vec.push_back(insinfo);
 		}
 		else
 		{
 			sol_info_vec->push_back(new SolutionInfo(stoi(fields_vec[0]),//run_cnt
-				boost::lexical_cast<double>(fields_vec[1]), stoi(fields_vec[2]),//obj,mm
+				stod(fields_vec[1]), stoi(fields_vec[2]),//obj,mm
 				stoi(fields_vec[3]), stoi(fields_vec[4]),//iter, tm
 				stoi(fields_vec[5]), stoi(fields_vec[6])//given_result_improve,result_improve
 				));
@@ -772,34 +792,39 @@ void analyze_total_file(string fnr,string fnw)
 int main(int argc, char **argv)
 {
 	char *rgv[] = { "",	//0
-		"_fn","hma20_pms_puqd_non_p20_itr2000_ptr50_rm1_ns0_t50_cp95_r1_r20",	//1,2
-		"_if","instance\\BB_Problem_BestSolution\\",	//3,4	
-		"_of","results\\",//5,6	
-		"_p","13",		//7,8
-		"_r","20",		//9,10
-		"_itr","200",	//11,12
-		"_ptr","30",	//13,14
-		"_rm","1",	//15,16
-		"_ns","0",	//17,18		
-		"_r1","1",	//19,20
-		"_r2","20",	//21,22
-		"_ws","0",	//23,24
-		"_t","2",	//25,26
-		"_cp","90"	//27,28
+		"_fn", "hma20_pms_puqd_non_p20_itr2000_ptr50_rm1_ns0_t50_cp95_r1_r20",	//1,2
+		"_if", "instance\\BB_Problem_BestSolution\\",	//3,4	
+		"_of", "results\\",	// output file path
+		"_efn", "_analyze0",	// each output file name, append to the source file, trunc mode
+		"_tfn", "total_information0", // total information of all the files, append mode
+		"_optfn", "opt_best_results",	// best found solution values file name
+		"_whe_save_each","0",		// whether save the results of each file	
+		"_total_info_per_para", "1"	// invoke total_information function or per parameter function
 	};
-	argv = rgv;
 	std::map<string, string> argv_map;
+	argv_map["_exe_name"] = argv[0];	// add the exe file name to argv map, to append to the output file name
 	for (int i = 1; i < sizeof(rgv) / sizeof(rgv[0]); i += 2)
+		argv_map[string(rgv[i])] = string(rgv[i + 1]);
+#ifndef DEBUG
+	for (int i = 1; i < argc; i += 2)
 		argv_map[string(argv[i])] = string(argv[i + 1]);
+#endif
 	string fnr, fnw,fnwt,fnr_best;
-	fnr = argv_map.at("_of") + argv_map.at("_fn")+".txt";
-	fnw = argv_map.at("_of") + argv_map.at("_fn") + "_analyze3.txt";
-	fnwt = argv_map.at("_of") + "total_information15.txt";
-	fnr_best = argv_map.at("_of") + "opt_best_results.txt";
-	Analyze *an = new Analyze(fnr, fnw,fnwt,fnr_best);	
-	//an->para_setting();
-	an->total_info();
+	string str_txt = ".txt";
+	fnr = argv_map.at("_of") + argv_map.at("_fn");
+	if (fnr.find(str_txt) == string::npos)
+		fnr += str_txt;
+	fnw = argv_map.at("_of") + argv_map.at("_fn") + argv_map.at("_efn") + str_txt;
+	fnwt = argv_map.at("_of") + argv_map.at("_tfn") + str_txt;
+	fnr_best = argv_map.at("_of") + argv_map.at("_optfn") + str_txt;
+	Analyze *an = new Analyze(fnr, fnw, fnwt, fnr_best, stoi(argv_map.at("_whe_save_each")));
+	if(stoi(argv_map.at("_total_info_per_para"))==0)
+		an->para_setting();
+	else if (stoi(argv_map.at("_total_info_per_para")) == 1)
+		an->total_info();
 	//analyze_total_file(fnr,fnw);
+#ifdef DEBUG
 	system("pause");
+#endif	
 }
 #endif

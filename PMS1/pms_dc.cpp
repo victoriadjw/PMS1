@@ -1,4 +1,4 @@
-#if 0
+#if 1
 #define _CRT_SECURE_NO_WARNINGS
 #include<iostream>
 #include<fstream>
@@ -2046,6 +2046,8 @@ int main(int argc, char **argv)
 			}
 		}
 	}
+#ifdef DEBUG
 	system("pause");
+#endif	
 }
 #endif
