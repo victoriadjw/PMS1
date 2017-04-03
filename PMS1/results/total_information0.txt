@@ -1,0 +1,2 @@
+fnr 	f[OB] 	 d[OB] 	 h[OB] 	 t[OB] 	 opt_best[OB] 	cmp_give[OB][IMPROVED] 	cmp_give[OB][EQUAL] 	cmp_give[OB][NONIMPROVED] 	f[BB] 	 d[BB] 	 h[BB] 	 t[BB] 	 opt_best[BB] 	cmp_give[BB][IMPROVED] 	cmp_give[BB][EQUAL] 	cmp_give[BB][NONIMPROVED]
+results\pmst_ils_dc0_ls3_ox2_pu1_p20_np10_itr2000_ptr50_rm9_alpha30_beta60_r1_r20.txt	418.740493	0.000000	10.777778	0.157722	360.846879	0	97	803	555.821017	0.007333	0.222222	48.571333	463.770517	0	2	898

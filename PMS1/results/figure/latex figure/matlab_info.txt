@@ -1,0 +1,103 @@
+//***dev**
+clear all;clc;
+dev=load('dev.txt');
+dev_p=flipud([dev(:,1) dev(:,2)]);
+dev_d=flipud([dev(:,3) dev(:,4)]);
+dev_m=flipud([dev(:,5) dev(:,6) dev(:,7)]);
+dev_n=flipud([dev(:,8) dev(:,9) dev(:,10)]);
+subplot(2,2,1)
+bar(dev_p,'group')
+subplot(2,2,2)
+bar(dev_d,'group')
+subplot(2,2,3)
+bar(dev_m,'group')
+subplot(2,2,4)
+bar(dev_n,'group')
+
+p=U(1,100)
+p=U(100,200)
+d=U(1%,5%)
+d=U(5%,10%)
+m=4
+m=7
+m=10
+n=20
+n=35
+n=50
+average deviation to the best value
+font size: 13, bold
+
+//***hr***
+//hr=fliplr(rot90(rot90(rot90(hr))));
+clear all;clc;
+hr=load('hr.txt');
+hr_p=flipud([hr(:,1) hr(:,2)]);
+hr_d=flipud([hr(:,3) hr(:,4)]);
+hr_m=flipud([hr(:,5) hr(:,6) hr(:,7)]);
+hr_n=flipud([hr(:,8) hr(:,9) hr(:,10)]);
+subplot(2,2,1)
+bar(hr_p,'group')
+subplot(2,2,2)
+bar(hr_d,'group')
+subplot(2,2,3)
+bar(hr_m,'group')
+subplot(2,2,4)
+bar(hr_n,'group')
+
+average hit ratio
+
+//***time***
+//time=fliplr(rot90(rot90(rot90(time))));
+clear all;clc;
+time=load('time.txt');
+time_p=flipud([time(:,1) time(:,2)]);
+time_d=flipud([time(:,3) time(:,4)]);
+time_m=flipud([time(:,5) time(:,6) time(:,7)]);
+time_n=flipud([time(:,8) time(:,9) time(:,10)]);
+subplot(2,2,1)
+bar(time_p,'group')
+subplot(2,2,2)
+bar(time_d,'group')
+subplot(2,2,3)
+bar(time_m,'group')
+subplot(2,2,4)
+bar(time_n,'group')
+
+average time (ms) 
+60000-12000	for time_p,time_d, display ms
+
+//***obj***
+//obj=fliplr(rot90(rot90(rot90(obj))));
+clear all;clc;
+obj=load('obj.txt');
+obj_p=flipud([obj(:,1) obj(:,2)]);
+obj_d=flipud([obj(:,3) obj(:,4)]);
+obj_m=flipud([obj(:,5) obj(:,6) obj(:,7)]);
+obj_n=flipud([obj(:,8) obj(:,9) obj(:,10)]);
+subplot(2,2,1)
+bar(obj_p,'group')
+subplot(2,2,2)
+bar(obj_d,'group')
+subplot(2,2,3)
+bar(obj_m,'group')
+subplot(2,2,4)
+bar(obj_n,'group')
+
+//alpha
+clear all;  clc;
+alpha=load('alpha.txt');
+alpha_ft=plotyy(alpha(:,1),alpha(:,2),alpha(:,1),alpha(:,5))      
+ylim(alpha_ft(1),[463.8,464])     
+ylim(alpha_ft(2),[75154.72178,150091.158])    
+
+x: value of \alpha
+y1: average object value
+y2: average time
+
+clear all;
+alpha=load('alpha.txt');
+alpha_devhr=plotyy(alpha(:,1),alpha(:,3),alpha(:,1),alpha(:,4))      
+ylim(alpha_devhr(1),[0.01,0.1])     
+ylim(alpha_devhr(2),[80,100])    
+y1: average deviation
+y2: average hit ratio
