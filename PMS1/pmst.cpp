@@ -1521,7 +1521,7 @@ void PMS::ejection_chain_local_search(int iteration, int perturb_rate, R_Mode r_
 		si_cur = 2, si_local = 3, si_ptr = 4, si_ref = 5, si_trial = 6;
 	int opt_cnt = 0, imp_cnt = 0, non_imp_cnt = 0;
 	int rt = time(NULL);
-	//rt = 1461506514;
+	//rt = 1491483583;
 	srand(rt);
 	ofs << ins_name << "\t" << n << "\t" << m << "\t"
 		<< obj_given << "\t" << sol_obj[si_opt] << "\t" << rt << endl;
@@ -1539,7 +1539,8 @@ void PMS::ejection_chain_local_search(int iteration, int perturb_rate, R_Mode r_
 		{
 			is_still_improve = false;
 			bool is_trial_improve = true;
-			for (int eject_job1 = 1; eject_job1 <= n&&is_trial_improve; eject_job1++)
+
+			for (int eject_job1 = rand()%n+1,eje=1; eje <= n&&is_trial_improve;eje++, eject_job1=eject_job1%n+1)
 			{
 				bool is_located = true;
 				int i1, j1;
@@ -1547,7 +1548,7 @@ void PMS::ejection_chain_local_search(int iteration, int perturb_rate, R_Mode r_
 				{
 					if (!effe_mach[si_cur][i3])
 						continue;
-					for (int j3 = 1; j3 < s[si_cur][i3].size() && is_located; j3++)
+					for (int j3 = 1; j3 < s[si_cur][i3].size(); j3++)
 					{
 						if (s[si_cur][i3][j3] == eject_job1)
 						{
@@ -1600,6 +1601,13 @@ void PMS::ejection_chain_local_search(int iteration, int perturb_rate, R_Mode r_
 					{
 						int min_mach, min_job, pos_eject2;
 						obj_type min_delta_obj = DBL_MAX;
+						if (m == 2)
+						{
+							if (effe_mach[si_ref][1] == false)
+								just_eject_mach = 1;
+							if (effe_mach[si_ref][2] == false)
+								just_eject_mach = 2;
+						}
 						for (int i2 = 1; i2 <= m; i2++)
 						{
 							if (i2 == just_eject_mach || !effe_mach[si_ref][i2])
@@ -1630,6 +1638,13 @@ void PMS::ejection_chain_local_search(int iteration, int perturb_rate, R_Mode r_
 					else
 					{
 						int rand_m = rand() % m + 1;
+						if (m == 2)
+						{
+							if (effe_mach[si_ref][1] == false)
+								just_eject_mach = 1;
+							if (effe_mach[si_ref][2] == false)
+								just_eject_mach = 2;
+						}
 						while (rand_m == just_eject_mach || !effe_mach[si_ref][rand_m])
 							rand_m = rand() % m + 1;
 						int rand_j = rand() % (s[si_ref][rand_m].size() - 1) + 1;
@@ -1654,14 +1669,14 @@ void PMS::ejection_chain_local_search(int iteration, int perturb_rate, R_Mode r_
 			}
 		}
 		makespan = 0;
-		for (int i = 1; i <= m; i++)
+		for (int i3 = 1; i3 <= m; i3++)
 		{
-			if (!effe_mach[si_best][i])
+			if (!effe_mach[si_best][i3])
 				continue;
-			if (c[si_best][i].back() - makespan > MIN_EQUAL)
+			if (c[si_best][i3].back() - makespan > MIN_EQUAL)
 			{
-				makespan = c[si_best][i].back();
-				mm[si_best] = i;
+				makespan = c[si_best][i3].back();
+				mm[si_best] = i3;
 			}
 		}
 		save_solution(si_best, si_opt, min_obj_iter, rc);
@@ -2173,6 +2188,7 @@ void run_algorithm(std::map<string, string> &argv_map, string ins_name)
 		"_np" + argv_map.at("_non_popu") +
 		"_itr" + argv_map.at("_itr") +
 		"_ptr" + argv_map.at("_ptr") +
+		"_cl" + argv_map.at("_cl") +
 		"_rm" + argv_map.at("_rm") +
 		//"_ns" + argv_map.at("_ns") +
 		"_alpha" + argv_map.at("_cx") +
@@ -2256,7 +2272,7 @@ int main(int argc, char **argv)
 		"_of","results\\",// output file directory
 		"_p","20",		// population size
 		"_itr","2000",	// max iteration of ILS
-		"_ptr","30",	// perturbation rate 
+		"_ptr","70",	// perturbation rate 
 		"_rm","9",	// construction rules for initial solution
 		"_ns","0",	// neighborhood search, 0:swap, 1:insert	
 		"_r1","1",	// run cnt from
@@ -2270,15 +2286,15 @@ int main(int argc, char **argv)
 		"_ls", "3",	// local search method
 		"_pu", "1",	// pool update method
 		"_xo", "2",	// crossover method
-		"_cl", "5", // length of the chain
+		"_cl", "15", // length of the chain
 		"_am", "1", // algorithm method
 		"_vi1","1",		"_vi2","2",
 		"_ni1","2",		"_ni2","3",
 		"_vj1","1",		"_vj2","2",
 		"_mj1","2",		"_mj2","3",
-		"_pi1","1",		"_pi2","1",
-		"_di1","1",		"_di2","1",
-		"_ins1","5",	"_ins2","5"
+		"_pi1","2",		"_pi2","2",
+		"_di1","2",		"_di2","2",
+		"_ins1","25",	"_ins2","25"
 	};
 #ifdef DEBUG
 	argc = sizeof(rgv) / sizeof(rgv[0]); argv = rgv;
