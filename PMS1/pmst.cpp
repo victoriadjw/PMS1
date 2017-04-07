@@ -10,7 +10,7 @@
 #include<float.h>
 #include<map>
 #include<vector>
-#define DEBUG 
+//#define DEBUG 
 using namespace std;
 typedef double proc_type;	// type of processing time
 typedef double dete_type;	// type of deterioration effect
@@ -1668,6 +1668,7 @@ void PMS::ejection_chain_local_search(int iteration, int perturb_rate, R_Mode r_
 				//cout << sol_obj[si_best] << endl;
 			}
 		}
+		//calculate makespan
 		makespan = 0;
 		for (int i3 = 1; i3 <= m; i3++)
 		{
@@ -2272,7 +2273,7 @@ int main(int argc, char **argv)
 		"_of","results\\",// output file directory
 		"_p","20",		// population size
 		"_itr","2000",	// max iteration of ILS
-		"_ptr","70",	// perturbation rate 
+		"_ptr","50",	// perturbation rate 
 		"_rm","9",	// construction rules for initial solution
 		"_ns","0",	// neighborhood search, 0:swap, 1:insert	
 		"_r1","1",	// run cnt from
@@ -2286,15 +2287,15 @@ int main(int argc, char **argv)
 		"_ls", "3",	// local search method
 		"_pu", "1",	// pool update method
 		"_xo", "2",	// crossover method
-		"_cl", "15", // length of the chain
+		"_cl", "5", // length of the chain
 		"_am", "1", // algorithm method
-		"_vi1","1",		"_vi2","2",
-		"_ni1","2",		"_ni2","3",
-		"_vj1","1",		"_vj2","2",
-		"_mj1","2",		"_mj2","3",
-		"_pi1","2",		"_pi2","2",
-		"_di1","2",		"_di2","2",
-		"_ins1","25",	"_ins2","25"
+		"_vi1","0",		"_vi2","2",
+		"_ni1","0",		"_ni2","3",
+		"_vj1","0",		"_vj2","2",
+		"_mj1","0",		"_mj2","3",
+		"_pi1","1",		"_pi2","2",
+		"_di1","1",		"_di2","2",
+		"_ins1","1",	"_ins2","25"
 	};
 #ifdef DEBUG
 	argc = sizeof(rgv) / sizeof(rgv[0]); argv = rgv;
