@@ -1,4 +1,4 @@
-#if 0
+#if 1
 #define _CRT_SECURE_NO_WARNINGS
 #include<iostream>
 #include<fstream>
@@ -22,7 +22,7 @@ private:
 	int m, n;	// m and n are the number of machines and jobs
 	vector<vector<proc_type>> p;	// processing time
 	vector<vector<dete_type>> d;	// deterioration effect
-	obj_type obj_given, makespan;	// the optimal objective value, makespan for total completion time
+	obj_type obj_given, makespan, total_completion_time;	// the optimal objective value, makespan, and total completion time
 	string file_input, file_output;
 	int sol_num;	// number of solution
 
@@ -351,11 +351,11 @@ void PMS::check_solution(int si)
 		display_solution(si);
 		system("pause");
 	}
-	if (total_comp_t != sol_obj[si])
+	/*if (total_comp_t != sol_obj[si])
 	{
 		cout << "ERROR, total completion time is wrong. " << si
 			<< ", real total completion time: " << total_comp_t << " " << sol_obj[si] << endl;
-	}
+	}*/
 }
 void PMS::check_solution_machine(int si, int mach_index)
 {
@@ -528,22 +528,22 @@ void PMS::replace_solution(int dest, int src)
 void PMS::save_solution(int si, int si_opt, int iterration, int run_cnt)
 {
 	int result_improve, given_result_improve;
-	if (fabs(makespan - sol_obj[si_opt]) <= MIN_EQUAL)
+	if (fabs(sol_obj[si] - sol_obj[si_opt]) <= MIN_EQUAL)
 		result_improve = 1;	// equal
-	else if (makespan - sol_obj[si] > MIN_EQUAL)
+	else if (sol_obj[si_opt] - sol_obj[si] > MIN_EQUAL)
 		result_improve = 2;	// improved
 	else
 		result_improve = 0;	// not improved
-	if (fabs(makespan - obj_given) <= MIN_EQUAL)
+	if (fabs(sol_obj[si] - obj_given) <= MIN_EQUAL)
 		given_result_improve = 1;
-	else if (obj_given - makespan > MIN_EQUAL)
+	else if (obj_given - sol_obj[si] > MIN_EQUAL)
 		given_result_improve = 2;
 	else
 		given_result_improve = 0;
 	ofs << run_cnt << "\t"
 		//<< c[si_opt][0] << "\t"
+		<< total_completion_time << "\t"
 		<< sol_obj[si] << "\t"
-		<< makespan << "\t"
 		<< mm[si] << "\t"
 		<< iterration << "\t"
 		<< (end_tm - start_tm) /*/ CLOCKS_PER_SEC*/ << "\t"
@@ -1539,7 +1539,7 @@ void PMS::ejection_chain_local_search(int iteration, int perturb_rate, R_Mode r_
 		{
 			is_still_improve = false;
 			bool is_trial_improve = true;
-			for (int eject_job1 = 1; eject_job1 <= n&&is_trial_improve; eject_job1++)
+			for (int eject_job1 = rand() % n + 1, eje = 1; eje <= n&&is_trial_improve; eje++, eject_job1 = eject_job1%n + 1)
 			{
 				bool is_located = true;
 				int i1, j1;
@@ -1577,15 +1577,41 @@ void PMS::ejection_chain_local_search(int iteration, int perturb_rate, R_Mode r_
 							continue;
 						int probe_pos = 0;
 						add_job(si_trial, i4, probe_pos, eject_job1);
-						if (min_c - c[si_trial][i4].back() > MIN_EQUAL)
+						if (i4 == mm[si_trial])
+						{	// i4 is the makespan machine
+							if (min_c - c[si_trial][i4].back() > MIN_EQUAL)
+							{
+								min_c = c[si_trial][i4].back();
+								min_c_mach = i4;
+								min_c_pos = probe_pos;
+							}
+						}
+						else
 						{
-							min_c = c[si_trial][i4].back();
-							min_c_mach = i4;
-							min_c_pos = probe_pos;
+							if (c[si_trial][i4].back() - sol_obj[si_trial] > MIN_EQUAL)
+							{	// i4 becomes the makespan machine
+								if (min_c - c[si_trial][i4].back() > MIN_EQUAL)
+								{
+									min_c = c[si_trial][i4].back();
+									min_c_mach = i4;
+									min_c_pos = probe_pos;
+								}
+							}
+							else
+							{	// mm[si_trial] is the makespan machine, unchanged
+								if (min_c - sol_obj[si_trial]>MIN_EQUAL)
+								{
+									min_c = sol_obj[si_trial];
+									min_c_mach = i4;
+									min_c_pos = probe_pos;
+								}
+							}
 						}
 						remove_job(si_trial, i4, probe_pos, eject_job1);
 					}
 					add_job(si_trial, min_c_mach, min_c_pos, eject_job1);
+					calculate_obj(si_trial);
+					//check_solution(si_trial);
 					if (c[si_trial][min_c_mach].back() - sol_obj[si_trial] > MIN_EQUAL)
 					{
 						sol_obj[si_trial] = c[si_trial][min_c_mach].back();
@@ -1657,21 +1683,19 @@ void PMS::ejection_chain_local_search(int iteration, int perturb_rate, R_Mode r_
 				//cout << sol_obj[si_best] << endl;
 			}
 		}
-		makespan = 0;
+		total_completion_time = 0;
 		for (int i3 = 1; i3 <= m; i3++)
 		{
 			if (!effe_mach[si_best][i3])
 				continue;
-			if (c[si_best][i3].back() - makespan > MIN_EQUAL)
-			{
-				makespan = c[si_best][i3].back();
-				mm[si_best] = i3;
-			}
+			total_completion_time += c[si_best][i3].back();
 		}
 		save_solution(si_best, si_opt, min_obj_iter, rc);
+		//check_solution(si_best);
 		//display_solution(si_best);
-		cout << sol_obj[si_best] << "\t" << sol_obj[si_opt] - sol_obj[si_best] << "\t"
-			<< makespan << "\t" << mm[si_best]
+		cout << sol_obj[si_best] << "\t" 
+			<< total_completion_time << "\t" 
+			<< mm[si_best]
 			<< endl;
 	}
 }
@@ -2260,7 +2284,7 @@ int main(int argc, char **argv)
 		"_of","results\\",// output file directory
 		"_p","20",		// population size
 		"_itr","2000",	// max iteration of ILS
-		"_ptr","30",	// perturbation rate 
+		"_ptr","70",	// perturbation rate 
 		"_rm","9",	// construction rules for initial solution
 		"_ns","0",	// neighborhood search, 0:swap, 1:insert	
 		"_r1","1",	// run cnt from
@@ -2274,7 +2298,7 @@ int main(int argc, char **argv)
 		"_ls", "3",	// local search method
 		"_pu", "1",	// pool update method
 		"_xo", "2",	// crossover method
-		"_cl", "5", // length of the chain
+		"_cl", "10", // length of the chain
 		"_am", "1", // algorithm method
 		"_vi1","1",		"_vi2","2",
 		"_ni1","2",		"_ni2","3",
