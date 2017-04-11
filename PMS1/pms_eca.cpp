@@ -47,7 +47,7 @@ public:
 	enum R_Mode { EXAC = 0, MINP, MAXP, MIND, MAXD, MINPDD, MAXPDD, MINPD, MAXPD, RANDOM, SIZE };
 	enum Cmp_Mode { GREATER, LESS };
 	enum NS_Mode { SWAP, INSERT };
-	int whe_save_sol_seq, alpha_cx_ptr, non_popu, whe_dc, ls_method, pu_method, cx_method, cl, am;
+	int whe_save_sol_seq, alpha_cx_ptr, non_popu, whe_dc, ls_method, pu_method, cx_method, cl, am, ptr;
 	string ins_name;
 	double control_para, temperature, pu_beta;
 	PMS(string, string, int);
@@ -69,7 +69,7 @@ public:
 	void local_search_hybrid_tri_insert_swap(int);
 	void local_search_ejection_chain(int, int, NS_Mode);
 	void iterated_local_search(int, int, R_Mode, NS_Mode, int, int);
-	void ejection_chain_local_search(int, int, R_Mode, NS_Mode, int, int);
+	void ejection_chain_local_search(int);
 	void hma(int, int, R_Mode, NS_Mode, int, int);
 	void gpx(int, int, int);
 	void mpx(int, int, int);
@@ -1411,7 +1411,7 @@ void PMS::divide_and_conquer(int si, int mach_num)
 void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, NS_Mode ns, int run_cnt_from, int run_cnt_to)
 {
 	int si_opt = 0, si_best = 1,
-		si_cur = 2, si_local = 3, si_ptr = 4;
+		si_cur = 2, si_ptr = 3;
 	int opt_cnt = 0, imp_cnt = 0, non_imp_cnt = 0;
 	obj_type sum_delta_obj = 0;
 	int rt = time(NULL);
@@ -1427,7 +1427,8 @@ void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, 
 		start_tm = clock();
 		init_solution(si_cur, r_mode);	//PMS::MINPDD
 										//display_solution(si_cur);
-		local_search(si_cur);
+		//local_search(si_cur);
+		ejection_chain_local_search(si_cur);
 		//local_search_hybrid(si_cur);
 		//local_search_ejection_chain(si_cur, si_local, ns);
 		replace_solution(si_best, si_cur);
@@ -1454,7 +1455,8 @@ void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, 
 			//local_search_ejection_chain(si_ptr, si_local, ns);
 			//check_solution(si_ptr);
 			//local_search_hybrid(si_ptr);
-			local_search(si_ptr);
+			//local_search(si_ptr);
+			ejection_chain_local_search(si_ptr);
 			//check_solution(si_ptr);
 			if (sol_obj[si_best] - sol_obj[si_ptr] > MIN_EQUAL)
 			{
@@ -1515,161 +1517,140 @@ void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, 
 	}
 	cout << sum_delta_obj << endl;
 }
-void PMS::ejection_chain_local_search(int iteration, int perturb_rate, R_Mode r_mode, NS_Mode ns, int run_cnt_from, int run_cnt_to)
+void PMS::ejection_chain_local_search(int si_cur)
 {
-	int si_opt = 0, si_best = 1,
-		si_cur = 2, si_local = 3, si_ptr = 4, si_ref = 5, si_trial = 6;
-	int opt_cnt = 0, imp_cnt = 0, non_imp_cnt = 0;
-	int rt = time(NULL);
-	//rt = 1461506514;
-	srand(rt);
-	ofs << ins_name << "\t" << n << "\t" << m << "\t"
-		<< obj_given << "\t" << sol_obj[si_opt] << "\t" << rt << endl;
-	cout << ins_name << "\t" << n << "\t" << m << "\t"
-		<< obj_given << "\t" << sol_obj[si_opt] << "\t" << rt << endl;
-	for (int rc = run_cnt_from; rc <= run_cnt_to; rc++)
+	int si_best = 4, si_ref = 5, si_trial = 6;
+	replace_solution(si_best, si_cur);
+	bool is_still_improve = true;
+	int min_obj_iter = 0;
+	while (is_still_improve)
 	{
-		start_tm = clock();
-		init_solution(si_cur, r_mode);
-		//display_solution(si_cur);
-		replace_solution(si_best, si_cur);
-		bool is_still_improve = true;
-		int min_obj_iter = 0;
-		while (is_still_improve)
+		is_still_improve = false;
+		bool is_trial_improve = true;
+		for (int eject_job1 = rand() % n + 1, eje = 1; eje <= n&&is_trial_improve; eje++, eject_job1 = eject_job1%n + 1)
 		{
-			is_still_improve = false;
-			bool is_trial_improve = true;
-			for (int eject_job1 = rand() % n + 1, eje = 1; eje <= n&&is_trial_improve; eje++, eject_job1 = eject_job1%n + 1)
+			bool is_located = true;
+			int i1, j1;
+			for (int i3 = 1; i3 <= m&&is_located; i3++)
 			{
-				bool is_located = true;
-				int i1, j1;
-				for (int i3 = 1; i3 <= m&&is_located; i3++)
+				if (!effe_mach[si_cur][i3])
+					continue;
+				for (int j3 = 1; j3 < s[si_cur][i3].size() && is_located; j3++)
 				{
-					if (!effe_mach[si_cur][i3])
-						continue;
-					for (int j3 = 1; j3 < s[si_cur][i3].size() && is_located; j3++)
+					if (s[si_cur][i3][j3] == eject_job1)
 					{
-						if (s[si_cur][i3][j3] == eject_job1)
-						{
-							i1 = i3;
-							j1 = j3;
-							is_located = false;
-							break;
-						}
-					}
-				}
-				int len = 1, just_eject_mach = i1;
-				//display_solution(si_cur);
-				replace_solution(si_ref, si_cur);
-				remove_job(si_ref, i1, j1, s[si_ref][i1][j1]);
-				//display_solution(si_ref);
-				if (i1 == mm[si_ref])
-					calculate_obj(si_ref);
-				while (len <= cl)
-				{
-					//trial_move(si_trial, i1, eject_job1, si_ref);
-					replace_solution(si_trial, si_ref);
-					obj_type min_c = DBL_MAX;
-					int min_c_mach, min_c_pos;
-					for (int i4 = 1; i4 <= m; i4++)
-					{
-						if (i4 == i1)
-							continue;
-						int probe_pos = 0;
-						add_job(si_trial, i4, probe_pos, eject_job1);
-						calculate_obj(si_trial);
-						if (min_c - sol_obj[si_trial]>MIN_EQUAL)
-						{
-							min_c = sol_obj[si_trial];
-							min_c_mach = i4;
-							min_c_pos = probe_pos;
-						}
-						remove_job(si_trial, i4, probe_pos, eject_job1);
-					}
-					add_job(si_trial, min_c_mach, min_c_pos, eject_job1);
-					calculate_obj(si_trial);
-					//check_solution(si_trial);
-					min_obj_iter += 1;
-					//display_solution(si_trial);
-					//check_solution(si_trial);
-					if (sol_obj[si_cur] - sol_obj[si_trial] > MIN_EQUAL)
-					{
-						replace_solution(si_cur, si_trial);
-						is_trial_improve = false;
+						i1 = i3;
+						j1 = j3;
+						is_located = false;
 						break;
 					}
-					if (rand() % 100 < perturb_rate)
-					{
-						int min_mach, min_job, pos_eject2;
-						obj_type min_delta_obj = DBL_MAX;
-						for (int i2 = 1; i2 <= m; i2++)
-						{
-							if (i2 == just_eject_mach || !effe_mach[si_ref][i2])
-								continue;
-							for (int j2 = 1; j2 < s[si_ref][i2].size(); j2++)
-							{
-								obj_type delta_obj = -c[si_ref][just_eject_mach].back() - c[si_ref][i2].back();
-								int eject_job2 = s[si_ref][i2][j2];
-								pos_eject2 = 0;
-								remove_job(si_ref, i2, j2, eject_job2);
-								add_job(si_ref, just_eject_mach, pos_eject2, eject_job2);
-								delta_obj += (c[si_ref][just_eject_mach].back() + c[si_ref][i2].back());
-								if (min_delta_obj - delta_obj > MIN_EQUAL)
-								{
-									min_delta_obj = delta_obj;
-									min_mach = i2;
-									min_job = j2;
-								}
-								add_job(si_ref, i2, j2, eject_job2);
-								remove_job(si_ref, just_eject_mach, pos_eject2, eject_job2);
-							}
-						}
-						pos_eject2 = 0;
-						add_job(si_ref, just_eject_mach, pos_eject2, s[si_ref][min_mach][min_job]);
-						remove_job(si_ref, min_mach, min_job, s[si_ref][min_mach][min_job]);
-						just_eject_mach = min_mach;
-					}
-					else
-					{
-						int rand_m = rand() % m + 1;
-						while (rand_m == just_eject_mach || !effe_mach[si_ref][rand_m])
-							rand_m = rand() % m + 1;
-						int rand_j = rand() % (s[si_ref][rand_m].size() - 1) + 1;
-						int eject_job2 = s[si_ref][rand_m][rand_j];
-						int pos_eject2 = 0;
-						//display_solution(si_ref);
-						add_job(si_ref, just_eject_mach, pos_eject2, eject_job2);
-						remove_job(si_ref, rand_m, rand_j, eject_job2);
-						just_eject_mach = rand_m;
-						//display_solution(si_ref);
-					}
-					len += 1;
 				}
 			}
-			if (sol_obj[si_best] - sol_obj[si_cur] > MIN_EQUAL)
+			int len = 1, just_eject_mach = i1;
+			//display_solution(si_cur);
+			replace_solution(si_ref, si_cur);
+			remove_job(si_ref, i1, j1, s[si_ref][i1][j1]);
+			//display_solution(si_ref);
+			if (i1 == mm[si_ref])
+				calculate_obj(si_ref);
+			while (len <= cl)
 			{
-				end_tm = clock();
-				replace_solution(si_best, si_cur);
-				//check_solution(si_best);
-				is_still_improve = true;
-				//cout << sol_obj[si_best] << endl;
+				//trial_move(si_trial, i1, eject_job1, si_ref);
+				replace_solution(si_trial, si_ref);
+				obj_type min_c = DBL_MAX;
+				int min_c_mach, min_c_pos;
+				for (int i4 = 1; i4 <= m; i4++)
+				{
+					if (i4 == i1)
+						continue;
+					int probe_pos = 0;
+					add_job(si_trial, i4, probe_pos, eject_job1);
+					calculate_obj(si_trial);
+					if (min_c - sol_obj[si_trial] > MIN_EQUAL)
+					{
+						min_c = sol_obj[si_trial];
+						min_c_mach = i4;
+						min_c_pos = probe_pos;
+					}
+					remove_job(si_trial, i4, probe_pos, eject_job1);
+				}
+				add_job(si_trial, min_c_mach, min_c_pos, eject_job1);
+				calculate_obj(si_trial);
+				//check_solution(si_trial);
+				min_obj_iter += 1;
+				//display_solution(si_trial);
+				//check_solution(si_trial);
+				if (sol_obj[si_cur] - sol_obj[si_trial] > MIN_EQUAL)
+				{
+					replace_solution(si_cur, si_trial);
+					is_trial_improve = false;
+					break;
+				}
+				if (rand() % 100 < ptr)
+				{
+					int min_mach, min_job, pos_eject2;
+					obj_type min_delta_obj = DBL_MAX;
+					for (int i2 = 1; i2 <= m; i2++)
+					{
+						if (i2 == just_eject_mach || !effe_mach[si_ref][i2])
+							continue;
+						for (int j2 = 1; j2 < s[si_ref][i2].size(); j2++)
+						{
+							obj_type delta_obj = -c[si_ref][just_eject_mach].back() - c[si_ref][i2].back();
+							int eject_job2 = s[si_ref][i2][j2];
+							pos_eject2 = 0;
+							remove_job(si_ref, i2, j2, eject_job2);
+							add_job(si_ref, just_eject_mach, pos_eject2, eject_job2);
+							delta_obj += (c[si_ref][just_eject_mach].back() + c[si_ref][i2].back());
+							if (min_delta_obj - delta_obj > MIN_EQUAL)
+							{
+								min_delta_obj = delta_obj;
+								min_mach = i2;
+								min_job = j2;
+							}
+							add_job(si_ref, i2, j2, eject_job2);
+							remove_job(si_ref, just_eject_mach, pos_eject2, eject_job2);
+						}
+					}
+					pos_eject2 = 0;
+					add_job(si_ref, just_eject_mach, pos_eject2, s[si_ref][min_mach][min_job]);
+					remove_job(si_ref, min_mach, min_job, s[si_ref][min_mach][min_job]);
+					just_eject_mach = min_mach;
+				}
+				else
+				{
+					int rand_m = rand() % m + 1;
+					while (rand_m == just_eject_mach || !effe_mach[si_ref][rand_m])
+						rand_m = rand() % m + 1;
+					int rand_j = rand() % (s[si_ref][rand_m].size() - 1) + 1;
+					int eject_job2 = s[si_ref][rand_m][rand_j];
+					int pos_eject2 = 0;
+					//display_solution(si_ref);
+					add_job(si_ref, just_eject_mach, pos_eject2, eject_job2);
+					remove_job(si_ref, rand_m, rand_j, eject_job2);
+					just_eject_mach = rand_m;
+					//display_solution(si_ref);
+				}
+				len += 1;
 			}
 		}
-		total_completion_time = 0;
-		for (int i3 = 1; i3 <= m; i3++)
+		if (sol_obj[si_best] - sol_obj[si_cur] > MIN_EQUAL)
 		{
-			if (!effe_mach[si_best][i3])
-				continue;
-			total_completion_time += c[si_best][i3].back();
+			end_tm = clock();
+			replace_solution(si_best, si_cur);
+			//check_solution(si_best);
+			is_still_improve = true;
+			//cout << sol_obj[si_best] << endl;
 		}
-		save_solution(si_best, si_opt, min_obj_iter, rc);
-		//check_solution(si_best);
-		//display_solution(si_best);
-		cout << sol_obj[si_best] << "\t" 
-			<< total_completion_time << "\t" 
-			<< mm[si_best]
-			<< endl;
 	}
+	replace_solution(si_cur, si_best);
+	/*total_completion_time = 0;
+	for (int i3 = 1; i3 <= m; i3++)
+	{
+		if (!effe_mach[si_best][i3])
+			continue;
+		total_completion_time += c[si_best][i3].back();
+	}*/
 }
 void PMS::hma(int iteration, int perturb_rate, R_Mode r_mode, NS_Mode ns, int run_cnt_from, int run_cnt_to)
 {
@@ -2191,6 +2172,7 @@ void run_algorithm(std::map<string, string> &argv_map, string ins_name)
 	pms->ls_method = stoi(argv_map.at("_ls"));
 	pms->pu_method = stoi(argv_map.at("_pu"));
 	pms->cx_method = stoi(argv_map.at("_xo"));
+	pms->ptr = stoi(argv_map.at("_ptr"));
 	pms->cl = stoi(argv_map.at("_cl"));
 	pms->am = stoi(argv_map.at("_am"));
 	//pms->test();
@@ -2220,12 +2202,8 @@ void run_algorithm(std::map<string, string> &argv_map, string ins_name)
 	PMS::NS_Mode ns_mode = stoi(argv_map.at("_ns")) == 0 ? PMS::SWAP : PMS::INSERT;
 	/*pms->hma(stoi(argv_map.at("_itr")), stoi(argv_map.at("_ptr")),
 	r_mode, ns_mode, stoi(argv_map.at("_r1")), stoi(argv_map.at("_r2")));*/
-	if (pms->am == 0)
-		pms->iterated_local_search(stoi(argv_map.at("_itr")), stoi(argv_map.at("_ptr")),
-			r_mode, ns_mode, stoi(argv_map.at("_r1")), stoi(argv_map.at("_r2")));
-	else if (pms->am == 1)
-		pms->ejection_chain_local_search(stoi(argv_map.at("_itr")), stoi(argv_map.at("_ptr")),
-			r_mode, ns_mode, stoi(argv_map.at("_r1")), stoi(argv_map.at("_r2")));
+	pms->iterated_local_search(stoi(argv_map.at("_itr")), stoi(argv_map.at("_ptr")),
+		r_mode, ns_mode, stoi(argv_map.at("_r1")), stoi(argv_map.at("_r2")));
 	delete pms;
 }
 int main(int argc, char **argv)
@@ -2270,7 +2248,7 @@ int main(int argc, char **argv)
 		"_ls", "3",	// local search method
 		"_pu", "1",	// pool update method
 		"_xo", "2",	// crossover method
-		"_cl", "15", // length of the chain
+		"_cl", "5", // length of the chain
 		"_am", "1", // algorithm method
 		"_vi1","1",		"_vi2","2",
 		"_ni1","2",		"_ni2","3",
