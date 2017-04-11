@@ -1577,46 +1577,18 @@ void PMS::ejection_chain_local_search(int iteration, int perturb_rate, R_Mode r_
 							continue;
 						int probe_pos = 0;
 						add_job(si_trial, i4, probe_pos, eject_job1);
-						if (i4 == mm[si_trial])
-						{	// i4 is the makespan machine
-							if (min_c - c[si_trial][i4].back() > MIN_EQUAL)
-							{
-								min_c = c[si_trial][i4].back();
-								min_c_mach = i4;
-								min_c_pos = probe_pos;
-							}
-						}
-						else
+						calculate_obj(si_trial);
+						if (min_c - sol_obj[si_trial]>MIN_EQUAL)
 						{
-							if (c[si_trial][i4].back() - sol_obj[si_trial] > MIN_EQUAL)
-							{	// i4 becomes the makespan machine
-								if (min_c - c[si_trial][i4].back() > MIN_EQUAL)
-								{
-									min_c = c[si_trial][i4].back();
-									min_c_mach = i4;
-									min_c_pos = probe_pos;
-								}
-							}
-							else
-							{	// mm[si_trial] is the makespan machine, unchanged
-								if (min_c - sol_obj[si_trial]>MIN_EQUAL)
-								{
-									min_c = sol_obj[si_trial];
-									min_c_mach = i4;
-									min_c_pos = probe_pos;
-								}
-							}
+							min_c = sol_obj[si_trial];
+							min_c_mach = i4;
+							min_c_pos = probe_pos;
 						}
 						remove_job(si_trial, i4, probe_pos, eject_job1);
 					}
 					add_job(si_trial, min_c_mach, min_c_pos, eject_job1);
 					calculate_obj(si_trial);
 					//check_solution(si_trial);
-					if (c[si_trial][min_c_mach].back() - sol_obj[si_trial] > MIN_EQUAL)
-					{
-						sol_obj[si_trial] = c[si_trial][min_c_mach].back();
-						mm[si_trial] = min_c_mach;
-					}
 					min_obj_iter += 1;
 					//display_solution(si_trial);
 					//check_solution(si_trial);
@@ -2298,7 +2270,7 @@ int main(int argc, char **argv)
 		"_ls", "3",	// local search method
 		"_pu", "1",	// pool update method
 		"_xo", "2",	// crossover method
-		"_cl", "10", // length of the chain
+		"_cl", "15", // length of the chain
 		"_am", "1", // algorithm method
 		"_vi1","1",		"_vi2","2",
 		"_ni1","2",		"_ni2","3",
