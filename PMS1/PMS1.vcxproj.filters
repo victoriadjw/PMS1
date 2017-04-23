@@ -39,6 +39,9 @@
     <ClCompile Include="pms_eca.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="pms_gd.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="TraverseDir.h">

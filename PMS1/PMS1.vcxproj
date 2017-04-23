@@ -157,6 +157,7 @@
     <ClCompile Include="pmst.cpp" />
     <ClCompile Include="pms_dc.cpp" />
     <ClCompile Include="pms_eca.cpp" />
+    <ClCompile Include="pms_gd.cpp" />
     <ClCompile Include="test.cpp" />
     <ClCompile Include="TraverseDir.cpp" />
   </ItemGroup>

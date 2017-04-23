@@ -726,8 +726,8 @@ void PMS::local_search_hybrid(int si)
 					//calculate_obj(si);
 					sol_obj[si] = pre_obj;
 				}
-				/*display_solution(si);
-				check_solution(si);*/
+				/*display_solution(si);*/
+				//check_solution(si);
 				for (int j = rand() % ((s[si][i].size() - 1) == 0 ? 1 : (s[si][i].size() - 1)) + 1, j_r = 1;
 					j_r < s[si][i].size(); j_r++, j = j % (s[si][i].size() - 1) + 1)
 				{
@@ -742,7 +742,7 @@ void PMS::local_search_hybrid(int si)
 					exchange_job(si, mm[si], pos_add_mm, pos_remove_mm, job_remove, job_add);
 					calculate_obj(si);
 					//check_solution(si);
-					/*display_solution(si);*/
+					//display_solution(si);
 					if (pre_obj - sol_obj[si] > MIN_EQUAL)
 					{
 						is_still_improved = true;
@@ -1415,7 +1415,7 @@ void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, 
 	int opt_cnt = 0, imp_cnt = 0, non_imp_cnt = 0;
 	obj_type sum_delta_obj = 0;
 	int rt = time(NULL);
-	//rt = 1461506514;
+	//rt =  1492937030;
 	srand(rt);
 	ofs << ins_name << "\t" << n << "\t" << m << "\t"
 		<< obj_given << "\t" << sol_obj[si_opt] << "\t" << rt << endl;
@@ -1428,8 +1428,11 @@ void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, 
 		init_solution(si_cur, r_mode);	//PMS::MINPDD
 										//display_solution(si_cur);
 		//local_search(si_cur);
-		ejection_chain_local_search(si_cur);
-		//local_search_hybrid(si_cur);
+		if(am==1)
+			ejection_chain_local_search(si_cur);
+		else if(am==0)
+			//local_search_hybrid(si_cur);
+			local_search_hybrid_tri_insert_swap(si_cur);
 		//local_search_ejection_chain(si_cur, si_local, ns);
 		replace_solution(si_best, si_cur);
 		end_tm = clock();
@@ -1454,9 +1457,12 @@ void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, 
 			//cout << sol_obj[si_best]<< ", " << sol_obj[si_cur] << endl;
 			//local_search_ejection_chain(si_ptr, si_local, ns);
 			//check_solution(si_ptr);
-			//local_search_hybrid(si_ptr);
 			//local_search(si_ptr);
-			ejection_chain_local_search(si_ptr);
+			if(am==1)
+				ejection_chain_local_search(si_ptr);
+			else if(am==0)
+				//local_search_hybrid(si_ptr);
+				local_search_hybrid_tri_insert_swap(si_ptr);
 			//check_solution(si_ptr);
 			if (sol_obj[si_best] - sol_obj[si_ptr] > MIN_EQUAL)
 			{
@@ -1506,6 +1512,13 @@ void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, 
 				makespan = c[si_best][i].back();
 				mm[si_best] = i;
 			}
+		}
+		total_completion_time = 0;
+		for (int i3 = 1; i3 <= m; i3++)
+		{
+			if (!effe_mach[si_best][i3])
+				continue;
+			total_completion_time += c[si_best][i3].back();
 		}
 		save_solution(si_best, si_opt, min_obj_iter, rc);
 		cout << sol_obj[si_best] << "\t" << sol_obj[si_opt] - sol_obj[si_best] << "\t"
@@ -1644,13 +1657,6 @@ void PMS::ejection_chain_local_search(int si_cur)
 		}
 	}
 	replace_solution(si_cur, si_best);
-	/*total_completion_time = 0;
-	for (int i3 = 1; i3 <= m; i3++)
-	{
-		if (!effe_mach[si_best][i3])
-			continue;
-		total_completion_time += c[si_best][i3].back();
-	}*/
 }
 void PMS::hma(int iteration, int perturb_rate, R_Mode r_mode, NS_Mode ns, int run_cnt_from, int run_cnt_to)
 {
@@ -2250,13 +2256,13 @@ int main(int argc, char **argv)
 		"_xo", "2",	// crossover method
 		"_cl", "5", // length of the chain
 		"_am", "1", // algorithm method
-		"_vi1","1",		"_vi2","2",
-		"_ni1","2",		"_ni2","3",
-		"_vj1","1",		"_vj2","2",
-		"_mj1","2",		"_mj2","3",
-		"_pi1","1",		"_pi2","1",
-		"_di1","1",		"_di2","1",
-		"_ins1","5",	"_ins2","5"
+		"_vi1","0",		"_vi2","2",
+		"_ni1","0",		"_ni2","3",
+		"_vj1","0",		"_vj2","2",
+		"_mj1","0",		"_mj2","3",
+		"_pi1","1",		"_pi2","2",
+		"_di1","1",		"_di2","2",
+		"_ins1","1",	"_ins2","25"
 	};
 #ifdef DEBUG
 	argc = sizeof(rgv) / sizeof(rgv[0]); argv = rgv;
