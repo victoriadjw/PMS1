@@ -1,4 +1,4 @@
-#if 1
+#if 0
 #define _CRT_SECURE_NO_WARNINGS
 #include<iostream>
 #include<fstream>
@@ -10,7 +10,7 @@
 #include<float.h>
 #include<map>
 #include<vector>
-#define DEBUG 
+//#define DEBUG 
 using namespace std;
 typedef double proc_type;	// type of processing time
 typedef double dete_type;	// type of deterioration effect
@@ -2152,6 +2152,7 @@ void run_algorithm(std::map<string, string> &argv_map, string ins_name)
 	string fnr = argv_map.at("_if") + ins_name;
 	string fnw = argv_map.at("_of") /*+ argv_map.at("_exe_name")*/ + argv_map.at("_px") +
 		"_am" + argv_map.at("_am") +
+		"_cl" + argv_map.at("_cl") +
 		"_dc" + argv_map.at("_dc") +
 		"_ls" + argv_map.at("_ls") +
 		"_ox" + argv_map.at("_xo") +
