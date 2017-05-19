@@ -280,7 +280,7 @@ void PMS::save_solution(int si, int si_opt, int iterration, int run_cnt)
 		<< c[si][0] << "\t"
 		<< mm[si] << "\t"
 		<< iterration << "\t"
-		<< (end_tm - start_tm) /*/ CLOCKS_PER_SEC*/ << "\t"
+		<< (double)(end_tm - start_tm) / CLOCKS_PER_SEC << "\t"
 		<< given_result_improve << "\t"
 		<< result_improve
 		<< endl;

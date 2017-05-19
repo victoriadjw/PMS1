@@ -10,7 +10,6 @@
 #include<float.h>
 #include<map>
 #include<vector>
-//#define DEBUG 
 using namespace std;
 typedef double proc_type;	// type of processing time
 typedef double dete_type;	// type of deterioration effect
@@ -546,7 +545,7 @@ void PMS::save_solution(int si, int si_opt, int iterration, int run_cnt)
 		<< sol_obj[si] << "\t"
 		<< mm[si] << "\t"
 		<< iterration << "\t"
-		<< (end_tm - start_tm) /*/ CLOCKS_PER_SEC*/ << "\t"
+		<< (double)(end_tm - start_tm) / CLOCKS_PER_SEC << "\t"
 		<< given_result_improve << "\t"
 		<< result_improve
 		<< endl;
@@ -1665,7 +1664,7 @@ void PMS::hma(int iteration, int perturb_rate, R_Mode r_mode, NS_Mode ns, int ru
 	int opt_cnt = 0, imp_cnt = 0, non_imp_cnt = 0;
 	obj_type sum_delta_obj = 0;
 	int rt = time(NULL);
-#ifdef DEBUG
+#ifdef _WIN32
 	//rt = 1462129579;
 #endif
 	srand(rt);
@@ -1780,14 +1779,14 @@ void PMS::hma(int iteration, int perturb_rate, R_Mode r_mode, NS_Mode ns, int ru
 		}
 		//check_solution(si_best); 
 		save_solution(si_best, si_opt, min_obj_iter, rc);
-#ifdef DEBUG
+#ifdef _WIN32
 		cout << sol_obj[si_best] << "\t" << sol_obj[si_opt] - sol_obj[si_best] << endl;
 		sum_delta_obj += (sol_obj[si_opt] - sol_obj[si_best]);
 #endif
 		/*display_solution(si_opt);*/
 		//display_solution(si_best);	
 	}
-#ifdef DEBUG
+#ifdef _WIN32
 	cout << sum_delta_obj << endl;
 #endif
 }
@@ -2215,7 +2214,10 @@ void run_algorithm(std::map<string, string> &argv_map, string ins_name)
 }
 int main(int argc, char **argv)
 {
-	char *rgv_ins[] = { "",
+	char *rgv_linux[] = { "",
+		"_px","hma_test",	//prefix for output file name
+		"_if","instance//BB_Problem_BestSolution//",	//input file directory
+		"_of","results//",// output file directory
 		"_p","20", "_itr","2000",
 		"_rm","9", "_ptr","70",
 		"_r1","1", "_r2","20",
@@ -2235,8 +2237,8 @@ int main(int argc, char **argv)
 		"_di1","1",		"_di2","2",
 		"_ins1","1",	"_ins2","25"
 	};
-	char *rgv[] = { "",	//0
-		"_px","hma_test",	//prefix for output file name
+	char *rgv_win[] = { "",	//0
+		"_px","pms_eca_test1",	//prefix for output file name
 		"_if","instance\\BB_Problem_BestSolution\\",	//input file directory
 		"_of","results\\",// output file directory
 		"_p","20",		// population size
@@ -2265,13 +2267,13 @@ int main(int argc, char **argv)
 		"_di1","1",		"_di2","2",
 		"_ins1","1",	"_ins2","25"
 	};
-#ifdef DEBUG
-	argc = sizeof(rgv) / sizeof(rgv[0]); argv = rgv;
+#ifdef _WIN32
+	argc = sizeof(rgv_win) / sizeof(rgv_win[0]); argv = rgv_win;
 #endif
 	std::map<string, string> argv_map;
 	argv_map["_exe_name"] = argv[0];	// add the exe file name to argv map, to append to the output file name
-	for (int i = 1; i < sizeof(rgv_ins) / sizeof(rgv_ins[0]); i += 2)
-		argv_map[string(rgv_ins[i])] = string(rgv_ins[i + 1]);
+	for (int i = 1; i < sizeof(rgv_linux) / sizeof(rgv_linux[0]); i += 2)
+		argv_map[string(rgv_linux[i])] = string(rgv_linux[i + 1]);
 	for (int i = 1; i < argc; i += 2)
 		argv_map[string(argv[i])] = string(argv[i + 1]);
 	vector<vector<int>> n_vec{ { 8, 11, 14 },{ 20, 35, 50 } };
@@ -2301,7 +2303,7 @@ int main(int argc, char **argv)
 			}
 		}
 	}
-#ifdef DEBUG
+#ifdef _WIN32
 	system("pause");
 #endif	
 }

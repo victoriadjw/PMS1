@@ -5,7 +5,6 @@
 #include<string>
 #include<map>
 #include<math.h>
-#define DEBUG 
 using namespace std;
 //using namespace boost;
 const double MIN_EQUAL = 0.001;
@@ -816,7 +815,7 @@ int main(int argc, char **argv)
 	argv_map["_exe_name"] = argv[0];	// add the exe file name to argv map, to append to the output file name
 	for (int i = 1; i < sizeof(rgv) / sizeof(rgv[0]); i += 2)
 		argv_map[string(rgv[i])] = string(rgv[i + 1]);
-#ifndef DEBUG
+#ifndef _WIN32
 	for (int i = 1; i < argc; i += 2)
 		argv_map[string(argv[i])] = string(argv[i + 1]);
 #endif
@@ -834,7 +833,7 @@ int main(int argc, char **argv)
 	else if (stoi(argv_map.at("_total_info_per_para")) == 1)
 		an->total_info();
 	//analyze_total_file(fnr,fnw);
-#ifdef DEBUG
+#ifdef _WIN32
 	system("pause");
 #endif	
 }

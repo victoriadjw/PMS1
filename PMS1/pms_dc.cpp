@@ -10,7 +10,6 @@
 #include<float.h>
 #include<map>
 #include<vector>
-#define DEBUG 
 using namespace std;
 typedef double proc_type;	// type of processing time
 typedef double dete_type;	// type of deterioration effect
@@ -544,7 +543,7 @@ void PMS::replace_solution(int dest, int src)
 		<< sol_obj[si] << "\t"
 		<< mm[si] << "\t"
 		<< iterration << "\t"
-		<< (end_tm - start_tm) /*/ CLOCKS_PER_SEC*/ << "\t"
+		<< (double)(end_tm - start_tm) / CLOCKS_PER_SEC << "\t"
 		<< given_result_improve << "\t"
 		<< result_improve
 		<< endl;
@@ -1422,7 +1421,7 @@ void PMS::hma(int iteration, int perturb_rate, R_Mode r_mode, NS_Mode ns, int ru
 	int opt_cnt = 0, imp_cnt = 0, non_imp_cnt = 0;
 	obj_type sum_delta_obj = 0;
 	int rt = time(NULL);
-#ifdef DEBUG
+#ifdef _WIN32
 	//rt = 1462129579;
 #endif
 	srand(rt);
@@ -1534,14 +1533,14 @@ void PMS::hma(int iteration, int perturb_rate, R_Mode r_mode, NS_Mode ns, int ru
 		}
 		//check_solution(si_best); 
 		save_solution(si_best, si_opt, min_obj_iter, rc);
-#ifdef DEBUG
+#ifdef _WIN32
 		cout << sol_obj[si_best] << "\t" << sol_obj[si_opt] - sol_obj[si_best] << endl;
 		sum_delta_obj += (sol_obj[si_opt] - sol_obj[si_best]);
 #endif
 		/*display_solution(si_opt);*/
 		//display_solution(si_best);	
 	}
-#ifdef DEBUG
+#ifdef _WIN32
 	cout << sum_delta_obj << endl;
 #endif
 }
@@ -2010,7 +2009,7 @@ int main(int argc, char **argv)
 		"_di1","2",		"_di2","2",
 		"_ins1","1",	"_ins2","1"
 	};
-#ifdef DEBUG
+#ifdef _WIN32
 	argc = sizeof(rgv) / sizeof(rgv[0]); argv = rgv;
 #endif
 	std::map<string, string> argv_map;
@@ -2046,7 +2045,7 @@ int main(int argc, char **argv)
 			}
 		}
 	}
-#ifdef DEBUG
+#ifdef _WIN32
 	system("pause");
 #endif	
 }
