@@ -21,9 +21,6 @@
     <ClCompile Include="test.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="TraverseDir.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
     <ClCompile Include="analyze.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -42,10 +39,5 @@
     <ClCompile Include="pms_gd.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="TraverseDir.h">
-      <Filter>头文件</Filter>
-    </ClInclude>
   </ItemGroup>
 </Project>

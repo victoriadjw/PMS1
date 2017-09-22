@@ -1,4 +1,4 @@
-#if 0
+#if 1
 #define _CRT_SECURE_NO_WARNINGS
 #include<iostream>
 #include<fstream>
@@ -11,6 +11,8 @@
 #include<map>
 #include<vector>
 using namespace std;
+#define MAX(x,y) (((x)>(y))?(x):(y))
+#define MIN(x,y) (((x)<(y))?(x):(y))
 typedef double proc_type;	// type of processing time
 typedef double dete_type;	// type of deterioration effect
 typedef double obj_type;	// type of objective value
@@ -21,6 +23,7 @@ private:
 	int m, n;	// m and n are the number of machines and jobs
 	vector<vector<proc_type>> p;	// processing time
 	vector<vector<dete_type>> d;	// deterioration effect
+	vector<vector<int>>w,dd;	// weight and due date
 	obj_type obj_given, makespan;	// the optimal objective value, makespan for total completion time
 	string file_input, file_output;
 	int sol_num;	// number of solution
@@ -87,7 +90,21 @@ public:
 	void save_solution(int, int, int, int);
 	void test();
 };
-
+template<typename T>
+void split_generic(vector<T> &v, const T & str, const T & delimiters) {
+	//vector<T> v;
+	v.clear();	// clear v to be empty
+	typename T::size_type start = 0;
+	auto pos = str.find_first_of(delimiters, start);
+	while (pos != T::npos) {
+		if (pos != start) // ignore empty tokens
+			v.emplace_back(str, start, pos - start);
+		start = pos + 1;
+		pos = str.find_first_of(delimiters, start);
+	}
+	if (start < str.length()) // ignore trailing delimiter
+		v.emplace_back(str, start, str.length() - start); // add what's left of the string
+}
 class PMS::cmpSort
 {
 public:
@@ -122,6 +139,8 @@ PMS::PMS(string file_input, string file_output, int _sol_num) :sol_num(_sol_num)
 	ifs >> n >> m;
 	p.resize(m + 1, vector<proc_type>(n + 1, 0));
 	d.resize(m + 1, vector<proc_type>(n + 1, 0));
+	w.resize(m + 1, vector<int>(n + 1, 0));
+	dd.resize(m + 1, vector<int>(n + 1, 0));
 	r.resize(m + 1, vector<proc_type>(n + 1, 0));
 	charact.resize(R_Mode::SIZE, vector<perf_type>(n + 1));
 
@@ -131,9 +150,13 @@ PMS::PMS(string file_input, string file_output, int _sol_num) :sol_num(_sol_num)
 	q.resize(sol_num, vector<vector<perf_type>>(m + 1, vector<perf_type>(1, 1)));
 	c.resize(sol_num, vector<vector<obj_type>>(m + 1, vector<obj_type>(1, 0)));
 	sol_obj.resize(sol_num, 0);
-	//dis.resize(sol_num - non_popu + 2, vector<obj_type>(sol_num - non_popu + 2, 0));
+	vector<string>fields_vec;
+	split_generic<string>(fields_vec, file_input, "._ \t");
+	int ins_cnt = stoi(fields_vec[fields_vec.size() - 2]);
+	double rdd[5] = { 0.2,0.4,0.6,0.8,1 };
 	for (int i = 1; i <= m; i++)
 	{
+		proc_type total_p = 0;
 		for (int j = 1; j <= n; j++)
 		{
 			if (!ifs.good())
@@ -142,8 +165,19 @@ PMS::PMS(string file_input, string file_output, int _sol_num) :sol_num(_sol_num)
 				exit(0);
 			}
 			ifs >> p[i][j];
+			//cout << p[i][j] << "\t";
+			total_p += p[i][j];
+		}
+		total_p /= m;
+		proc_type min_dd = MAX(1 - rdd[ins_cnt / 5 + 1] - rdd[ins_cnt % 5 + 1]/2, 0);
+		proc_type max_dd = 1 - rdd[ins_cnt / 5 + 1] + rdd[ins_cnt % 5 + 1]/2;
+		for (int j = 1; j <= n; j++)
+		{
+			dd[i][j] = total_p*min_dd + rand() % (int)((max_dd - min_dd)*total_p);
+			w[i][j] = rand() % 10 + 1;
 		}
 	}
+
 	for (int i = 1; i <= m; i++)
 	{
 		for (int j = 1; j <= n; j++)
@@ -157,8 +191,30 @@ PMS::PMS(string file_input, string file_output, int _sol_num) :sol_num(_sol_num)
 			d[i][j] *= 0.01;
 		}
 	}
+
+	string new_ins_name = file_input;
+	new_ins_name = new_ins_name.replace(new_ins_name.find("Ni"), 2, "NW");
+	new_ins_name = new_ins_name.replace(new_ins_name.find("BB_"), 3, "BB_W_");
+	ofstream ofst(new_ins_name, ios::trunc | ios::out);
+	if (!ofst.is_open())
+	{
+		cout << new_ins_name << endl; perror("new_ins_name.");
+		exit(0);
+	}
+	ofst << m << "\t" << n << endl;
+	for (int j = 1; j <= n; j++)
+	{
+		for (int i = 1; i <= m; i++)
+		{
+			ofst << p[i][j] << "\t"
+				<< d[i][j] << "\t"
+				<< w[i][j] << "\t"
+				<< dd[i][j] << endl;
+		}
+	}
+	ofs.close();
 	// calculate r
-	for (int i = 1; i <= m; i++)
+/*	for (int i = 1; i <= m; i++)
 	{
 		for (int j = 1; j <= n; j++)
 		{
@@ -222,7 +278,7 @@ PMS::PMS(string file_input, string file_output, int _sol_num) :sol_num(_sol_num)
 		cout << "the given optimal solution is wrong."
 			<< obj_given << " " << sol_obj[si_opt] << endl;
 		//system("pause");
-	}
+	}*/
 	ifs.close();
 }
 PMS::~PMS()
@@ -2236,12 +2292,12 @@ void run_algorithm(std::map<string, string> &argv_map, string ins_name)
 	PMS::NS_Mode ns_mode = stoi(argv_map.at("_ns")) == 0 ? PMS::SWAP : PMS::INSERT;
 	/*pms->hma(stoi(argv_map.at("_itr")), stoi(argv_map.at("_ptr")),
 		r_mode, ns_mode, stoi(argv_map.at("_r1")), stoi(argv_map.at("_r2")));*/
-	if (pms->am == 0)
+	/*if (pms->am == 0)
 		pms->iterated_local_search(stoi(argv_map.at("_itr")), stoi(argv_map.at("_ptr")),
 			r_mode, ns_mode, stoi(argv_map.at("_r1")), stoi(argv_map.at("_r2")));
 	else if (pms->am == 1)
 		pms->ejection_chain_local_search(stoi(argv_map.at("_itr")), stoi(argv_map.at("_ptr")),
-			r_mode, ns_mode, stoi(argv_map.at("_r1")), stoi(argv_map.at("_r2")));
+			r_mode, ns_mode, stoi(argv_map.at("_r1")), stoi(argv_map.at("_r2")));*/
 	delete pms;
 }
 int main(int argc, char **argv)
@@ -2268,7 +2324,7 @@ int main(int argc, char **argv)
 	};
 	char *rgv[] = { "",	//0
 		"_px","hma_test",	//prefix for output file name
-		"_if","instance\\BB_Problem_BestSolution\\",	//input file directory
+		"_if","instance\\BB_Problem\\",	//input file directory
 		"_of","results\\",// output file directory
 		"_p","20",		// population size
 		"_itr","2000",	// max iteration of ILS
@@ -2288,10 +2344,9 @@ int main(int argc, char **argv)
 		"_xo", "2",	// crossover method
 		"_cl", "5", // length of the chain
 		"_am", "1", // algorithm method
-		"_vi1","0",		"_vi2","2",
-		"_ni1","0",		"_ni2","3",
-		"_vj1","0",		"_vj2","2",
-		"_mj1","0",		"_mj2","3",
+		"_vi1","1",		"_vi2","1",
+		"_ni1","0",		"_ni2","2",
+		"_mj1","0",		"_mj2","2",
 		"_pi1","1",		"_pi2","2",
 		"_di1","1",		"_di2","2",
 		"_ins1","1",	"_ins2","25"
@@ -2307,25 +2362,20 @@ int main(int argc, char **argv)
 		argv_map[string(argv[i])] = string(argv[i + 1]);
 	vector<vector<int>> n_vec{ { 8, 11, 14 },{ 20, 35, 50 } };
 	vector<vector<int>> m_vec{ { 2, 3, 4 },{ 4, 7, 10 } };
-	for (int vi = stoi(argv_map.at("_vi1")); vi < stoi(argv_map.at("_vi2")); vi++)	// 0, 2
+	for (int vi = stoi(argv_map.at("_vi1")); vi <= stoi(argv_map.at("_vi2")); vi++)	// 0, 1
 	{
-		for (int ni = stoi(argv_map.at("_ni1")); ni < stoi(argv_map.at("_ni2")); ni++)	// 0, 3
+		for (int ni = stoi(argv_map.at("_ni1")); ni <= stoi(argv_map.at("_ni2")); ni++)	// 0, 2
 		{
-			for (int vj = stoi(argv_map.at("_vj1")); vj < stoi(argv_map.at("_vj2")); vj++)	// 0, 2
+			for (int mj = stoi(argv_map.at("_mj1")); mj <= stoi(argv_map.at("_mj2")); mj++)	// 0, 2
 			{
-				if (vi != vj)
-					continue;
-				for (int mj = stoi(argv_map.at("_mj1")); mj < stoi(argv_map.at("_mj2")); mj++)	// 0, 3
+				for (int pi = stoi(argv_map.at("_pi1")); pi <= stoi(argv_map.at("_pi2")); pi++)	// 1, 2
 				{
-					for (int pi = stoi(argv_map.at("_pi1")); pi <= stoi(argv_map.at("_pi2")); pi++)	// 1, 2
+					for (int di = stoi(argv_map.at("_di1")); di <= stoi(argv_map.at("_di2")); di++)	// 1, 2
 					{
-						for (int di = stoi(argv_map.at("_di1")); di <= stoi(argv_map.at("_di2")); di++)	// 1, 2
+						for (int ins = stoi(argv_map.at("_ins1")); ins <= stoi(argv_map.at("_ins2")); ins++)	// 1, 25
 						{
-							for (int ins = stoi(argv_map.at("_ins1")); ins <= stoi(argv_map.at("_ins2")); ins++)	// 1, 25
-							{
-								run_algorithm(argv_map, "Ni_" + to_string(n_vec[vi][ni]) + "_" + to_string(m_vec[vj][mj]) + "-"
-									+ to_string(pi) + "_" + to_string(di) + "_" + to_string(ins));
-							}
+							run_algorithm(argv_map, "Ni_" + to_string(n_vec[vi][ni]) + "_" + to_string(m_vec[vi][mj]) + "-"
+								+ to_string(pi) + "_" + to_string(di) + "_" + to_string(ins));
 						}
 					}
 				}

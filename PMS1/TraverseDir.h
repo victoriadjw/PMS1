@@ -10,7 +10,6 @@
 using namespace std;
 #define MAX_SIZE  500
 #define INS_CNT 30
-
 class CBrowseDir
 {
 protected:
