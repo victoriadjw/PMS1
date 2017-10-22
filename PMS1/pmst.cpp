@@ -15,30 +15,27 @@ using namespace std;
 #define MIN(x,y) (((x)<(y))?(x):(y))
 typedef double proc_type;	// type of processing time
 typedef double dete_type;	// type of deterioration effect
-typedef double obj_type;	// type of objective value
-typedef double perf_type;	// type of performance level
 class PMS
 {
 private:
 	int m, n;	// m and n are the number of machines and jobs
-	vector<vector<proc_type>> p;	// processing time
+	vector<proc_type> p;	// processing time
 	vector<vector<dete_type>> d;	// deterioration effect
-	vector<vector<int>>w,dd;	// weight and due date
-	obj_type obj_given, makespan;	// the optimal objective value, makespan for total completion time
-	string file_input, file_output;
+	vector<int>w;	// weight 
+	string ifn, ofn;
 	int sol_num;	// number of solution
 
 	vector<vector<vector<int>>> s;	// solution, s[si][0][0] is the makespan machine
-	vector<vector<vector<perf_type>>> q;	// perfermance level
-	vector<vector<vector<obj_type>>> c;	// completion time, c[si][0][0] is the obj
+	vector<vector<vector<dete_type>>> q;	// perfermance level
+	vector<vector<vector<proc_type>>> c;	// completion time
+	vector<vector<vector<proc_type>>> wc;	// weighted completion time
 	vector<vector<bool>> effe_mach;	// indicates the effectiveness of the machine
 	vector<int> mm;	// indicates the makespan machine
-	vector<obj_type> sol_obj;	// the objective value of the solution
+	vector<proc_type> sol_obj;	// the objective value of the solution
 
-	vector<vector<perf_type>> r;	// exact sort accordance
-	vector<vector<perf_type>> charact;	// characteristics sort accordance
+	vector<vector<dete_type>> r;	// exact sort accordance
+	vector<vector<dete_type>> charact;	// characteristics sort accordance
 	vector<int>tabu_pool_update;	// tabu list in pool update
-									//vector<vector<obj_type>> dis;	// distance between two parents in pool update rule
 	clock_t start_tm, end_tm;
 	class cmpSort;
 	const double MIN_EQUAL = 0.001;
@@ -49,29 +46,31 @@ public:
 	enum R_Mode { EXAC = 0, MINP, MAXP, MIND, MAXD, MINPDD, MAXPDD, MINPD, MAXPD, RANDOM, SIZE };
 	enum Cmp_Mode { GREATER, LESS };
 	enum NS_Mode { SWAP, INSERT };
-	int whe_save_sol_seq, alpha_cx_ptr, non_popu, whe_dc, ls_method, pu_method, cx_method, cl, am;
+	int whe_save_sol_seq, alpha_cx_ptr, non_popu, whe_dc, ls_method, pu_method, cx_method, cl, am, ecag;
 	string ins_name;
 	double control_para, temperature, pu_beta;
-	PMS(string, string, int);
+	PMS(string, string,int);
 	~PMS();
 	void display_problem();
 	void display_solution(int);
 	void check_solution(int);
+	void check_sort(int);
 	void check_solution_machine(int, int);
 	void init_solution(int, R_Mode);
 	void calculate_completion_time(int, int);
 	void calculate_obj(int);
-	void add_job(int, int, int&, int);
-	void remove_job(int, int, int&, int);
+	void try_add(int, int, int, int &, proc_type&);
+	void try_remove(int, int, int, proc_type&);
+	void add_job(int, int, int, int);
+	void remove_job(int, int, int);
 	void exchange_job(int, int, int&, int&, int, int);
 	void local_search(int);
 	void local_search_hybrid(int);
 	void local_search_hybrid_tri_insert(int);
 	void local_search_hybrid_tri_swap(int);
 	void local_search_hybrid_tri_insert_swap(int);
-	void local_search_ejection_chain(int, int, NS_Mode);
 	void iterated_local_search(int, int, R_Mode, NS_Mode, int, int);
-	void ejection_chain_local_search(int, int, R_Mode, NS_Mode, int, int);
+	void ECA(int, int, int, int, int);
 	void hma(int, int, R_Mode, NS_Mode, int, int);
 	void gpx(int, int, int);
 	void mpx(int, int, int);
@@ -79,9 +78,6 @@ public:
 	void pool_update(int, int, int);
 	void pool_update_qd(int, int, int);
 	void divide_and_conquer(int si, int mach_num);
-	void local_search1(int si, int *sub_mach, int sub_m, obj_type &sub_obj);
-	void insert1(int si, int *sub_mach, int mm_j, int mo, obj_type &sub_obj);
-	void swap1(int si, int *sub_mach, int mm_j, int mo, int mo_j, obj_type &sub_obj);
 	void replace_solution(int, int);
 	void perturb(int, int);
 	void perturb1(int, int);
@@ -120,105 +116,55 @@ private:
 	Cmp_Mode cm;
 };
 
-PMS::PMS(string file_input, string file_output, int _sol_num) :sol_num(_sol_num)
+PMS::PMS(string _ifn, string _ofn,int _sol_num) :ifn(_ifn),ofn(_ofn),sol_num(_sol_num)
 {
-	ifstream ifs(file_input);
+	ifstream ifs(ifn);
 	if (!ifs.is_open())
 	{
-		cout << file_input << endl; perror("file_input.");
+		cout << ifn << endl; perror("ifn.");
 		exit(0);
 	}
-	ofs.open(file_output, ios::app | ios::out);
+	ofs.open(ofn, ios::app | ios::out);
 	if (!ofs.is_open())
 	{
-		cout << file_output << endl; perror("file_output.");
+		cout << ofn << endl; perror("ofn.");
 		exit(0);
 	}
 	ofs.setf(ios::fixed, ios::floatfield);
 	ofs.precision(6);
 	ifs >> n >> m;
-	p.resize(m + 1, vector<proc_type>(n + 1, 0));
+	p.resize(n + 1, 0);
 	d.resize(m + 1, vector<proc_type>(n + 1, 0));
-	w.resize(m + 1, vector<int>(n + 1, 0));
-	dd.resize(m + 1, vector<int>(n + 1, 0));
+	w.resize(n + 1, 0);
 	r.resize(m + 1, vector<proc_type>(n + 1, 0));
-	charact.resize(R_Mode::SIZE, vector<perf_type>(n + 1));
+	charact.resize(R_Mode::SIZE, vector<dete_type>(n + 1));
 
 	s.resize(sol_num, vector<vector<int>>(m + 1, vector<int>(1, 0)));
 	effe_mach.resize(sol_num, vector<bool>(m + 1, false));
 	mm.resize(sol_num, 0);
-	q.resize(sol_num, vector<vector<perf_type>>(m + 1, vector<perf_type>(1, 1)));
-	c.resize(sol_num, vector<vector<obj_type>>(m + 1, vector<obj_type>(1, 0)));
+	q.resize(sol_num, vector<vector<dete_type>>(m + 1, vector<dete_type>(1, 1)));
+	c.resize(sol_num, vector<vector<proc_type>>(m + 1, vector<proc_type>(1, 0)));
+	wc.resize(sol_num, vector<vector<proc_type>>(m + 1, vector<proc_type>(1, 0)));
 	sol_obj.resize(sol_num, 0);
+
+	string str_line;
 	vector<string>fields_vec;
-	split_generic<string>(fields_vec, file_input, "._ \t");
-	int ins_cnt = stoi(fields_vec[fields_vec.size() - 2]);
-	double rdd[5] = { 0.2,0.4,0.6,0.8,1 };
-	for (int i = 1; i <= m; i++)
-	{
-		proc_type total_p = 0;
-		for (int j = 1; j <= n; j++)
-		{
-			if (!ifs.good())
-			{
-				perror("input processing time error.");
-				exit(0);
-			}
-			ifs >> p[i][j];
-			//cout << p[i][j] << "\t";
-			total_p += p[i][j];
-		}
-		total_p /= m;
-		proc_type min_dd = MAX(1 - rdd[ins_cnt / 5 + 1] - rdd[ins_cnt % 5 + 1]/2, 0);
-		proc_type max_dd = 1 - rdd[ins_cnt / 5 + 1] + rdd[ins_cnt % 5 + 1]/2;
-		for (int j = 1; j <= n; j++)
-		{
-			dd[i][j] = total_p*min_dd + rand() % (int)((max_dd - min_dd)*total_p);
-			w[i][j] = rand() % 10 + 1;
-		}
-	}
-
-	for (int i = 1; i <= m; i++)
-	{
-		for (int j = 1; j <= n; j++)
-		{
-			if (!ifs.good())
-			{
-				perror("input deterioration effect error.");
-				exit(0);
-			}
-			ifs >> d[i][j];
-			d[i][j] *= 0.01;
-		}
-	}
-
-	string new_ins_name = file_input;
-	new_ins_name = new_ins_name.replace(new_ins_name.find("Ni"), 2, "NW");
-	new_ins_name = new_ins_name.replace(new_ins_name.find("BB_"), 3, "BB_W_");
-	ofstream ofst(new_ins_name, ios::trunc | ios::out);
-	if (!ofst.is_open())
-	{
-		cout << new_ins_name << endl; perror("new_ins_name.");
-		exit(0);
-	}
-	ofst << m << "\t" << n << endl;
+	getline(ifs, str_line);
 	for (int j = 1; j <= n; j++)
 	{
-		for (int i = 1; i <= m; i++)
-		{
-			ofst << p[i][j] << "\t"
-				<< d[i][j] << "\t"
-				<< w[i][j] << "\t"
-				<< dd[i][j] << endl;
-		}
+			getline(ifs, str_line);
+			split_generic<string>(fields_vec, str_line, "_ \t");
+			p[j] = stod(fields_vec[0]);
+			w[j] = stoi(fields_vec[1]);
+			for (int i = 1; i <= m; i++)
+				d[i][j] = stod(fields_vec[i + 1]);
 	}
-	ofs.close();
 	// calculate r
-/*	for (int i = 1; i <= m; i++)
+	for (int i = 1; i <= m; i++)
 	{
 		for (int j = 1; j <= n; j++)
 		{
-			r[i][j] = p[i][j] * (1 - d[i][j]) / d[i][j];
+			r[i][j] = p[j] / d[i][j];
 		}
 	}
 	// calculate charact
@@ -227,110 +173,221 @@ PMS::PMS(string file_input, string file_output, int _sol_num) :sol_num(_sol_num)
 		for (int j = 1; j <= n; j++)
 		{
 			if (rm == R_Mode::MINP || rm == R_Mode::MAXP)
-				charact[rm][j] = p[1][j];
+				charact[rm][j] = p[j];
 			else if (rm == R_Mode::MIND || rm == R_Mode::MAXD)
 				charact[rm][j] = d[1][j];
 			else if (rm == R_Mode::MINPDD || rm == R_Mode::MAXPDD)
-				charact[rm][j] = p[1][j] * (1 - d[1][j]) / d[1][j];
+				charact[rm][j] = p[j] * (1 - d[1][j]) / d[1][j];
 			else if (rm == R_Mode::MINPD | rm == R_Mode::MAXPD)
-				charact[rm][j] = p[1][j] * (1 - d[1][j]);
+				charact[rm][j] = p[j] * (1 - d[1][j]);
 			for (int i = 2; i <= m; i++)
 			{
-				if (rm == R_Mode::MINP&&p[i][j] < charact[rm][j])
-					charact[rm][j] = p[i][j];
-				if (rm == R_Mode::MAXP&&p[i][j] > charact[rm][j])
-					charact[rm][j] = p[i][j];
+				if (rm == R_Mode::MINP&&p[j] < charact[rm][j])
+					charact[rm][j] = p[j];
+				if (rm == R_Mode::MAXP&&p[j] > charact[rm][j])
+					charact[rm][j] = p[j];
 				if (rm == R_Mode::MIND&&d[i][j] < charact[rm][j])
 					charact[rm][j] = d[i][j];
 				if (rm == R_Mode::MAXD&&d[i][j] > charact[rm][j])
 					charact[rm][j] = d[i][j];
-				if (rm == R_Mode::MINPDD && (p[i][j] * (1 - d[i][j]) / d[i][j]) < charact[rm][j])
-					charact[rm][j] = p[i][j] * (1 - d[i][j]) / d[i][j];
-				if (rm == R_Mode::MAXPDD && (p[i][j] * (1 - d[i][j]) / d[i][j]) > charact[rm][j])
-					charact[rm][j] = p[i][j] * (1 - d[i][j]) / d[i][j];
-				if (rm == R_Mode::MINPD && (p[i][j] * (1 - d[i][j])) < charact[rm][j])
-					charact[rm][j] = p[i][j] * (1 - d[i][j]);
-				if (rm == R_Mode::MAXPD && (p[i][j] * (1 - d[i][j])) > charact[rm][j])
-					charact[rm][j] = p[i][j] * (1 - d[i][j]);
+				if (rm == R_Mode::MINPDD && (p[j] * (1 - d[i][j]) / d[i][j]) < charact[rm][j])
+					charact[rm][j] = p[j] * (1 - d[i][j]) / d[i][j];
+				if (rm == R_Mode::MAXPDD && (p[j] * (1 - d[i][j]) / d[i][j]) > charact[rm][j])
+					charact[rm][j] = p[j] * (1 - d[i][j]) / d[i][j];
+				if (rm == R_Mode::MINPD && (p[j] * (1 - d[i][j])) < charact[rm][j])
+					charact[rm][j] = p[j] * (1 - d[i][j]);
+				if (rm == R_Mode::MAXPD && (p[j] * (1 - d[i][j])) > charact[rm][j])
+					charact[rm][j] = p[j] * (1 - d[i][j]);
 			}
 		}
 	}
-	int si_opt = 0, num_job;
-	for (int i = 1; i <= m; i++)
-	{
-		ifs >> num_job;	// the optimal number of jobs to be assigned to machine i	
-		s[si_opt][i].resize(num_job + 1);
-		effe_mach[si_opt][i] = num_job > 0 ? true : false;	// the first element indicates the effectiveness of machine i
-		q[si_opt][i].resize(num_job + 1);
-		c[si_opt][i].resize(num_job + 1);
-		for (int j = 1; j <= num_job; j++)
-			ifs >> s[si_opt][i][j];	// the list of jobs to be assinged to machine i
-	}
-	ifs >> obj_given;
-	for (int i = 1; i <= m; i++)
-	{
-		sort(s[si_opt][i].begin() + 1, s[si_opt][i].end(), cmpSort(r[i]));
-		calculate_completion_time(si_opt, i);
-	}
-	calculate_obj(si_opt);
-	if (fabs(obj_given - sol_obj[si_opt]) > MIN_EQUAL)
-	{
-		cout << "the given optimal solution is wrong."
-			<< obj_given << " " << sol_obj[si_opt] << endl;
-		//system("pause");
-	}*/
 	ifs.close();
 }
 PMS::~PMS()
 {
-	/*	for (int i = 0; i < sol_num; i++)
-	{
-	for (int j = 0; j <= m; j++)
-	{
-	delete[]s[i][j];
-	}
-	delete[]s[i];
-	delete[]c[i];
-	}
-	delete[]s;
-	delete[]c;
-	delete[]mm;
-	delete[]sub_mach;
-
-	for (int i = 1; i < R_Mode::SIZE; i++)
-	delete[]charact[i];
-	delete[]charact;
-
-	for (int i = 0; i <= m; i++)
-	{
-	delete[]p[i];
-	delete[]d[i];
-	delete[]r[i];
-	}
-	delete[]p;
-	delete[]d;
-	delete[]r;*/
 	ofs.close();
 	//cout << "destruct function." << endl;
 }
 void PMS::display_problem()
 {
-	cout << ins_name << "n: " << n << ", m: " << m
-		<< ", opt given: " << obj_given
-		<< ", opt real: " << sol_obj[0] << endl;
-	cout << "processing time:" << endl;
-	for (int i = 1; i <= m; i++)
+	cout << ins_name << "\tn: " << n << ", m: " << m << endl;
+	for (int j = 1; j <= n; j++)
 	{
-		for (int j = 1; j <= n; j++)
-			cout << p[i][j] << "\t";
-		cout << endl;
-	}
-	cout << "deterioration effect: " << endl;
-	for (int i = 1; i <= m; i++)
-	{
-		for (int j = 1; j <= n; j++)
+		cout << p[j] << "\t" << w[j] << "\t";
+		for (int i = 1; i <= m; i++)
 			cout << d[i][j] << "\t";
 		cout << endl;
+	}
+}
+void PMS::init_solution(int si, R_Mode rm)
+{
+	if (rm == R_Mode::RANDOM)
+	{
+		for (int j = 1; j <= n; j++)
+			charact[rm][j] = rand() % 1000;
+	}
+	vector<int> job_sort_charact_vec(n + 1);
+	for (int i = 1; i <= n; i++)
+		job_sort_charact_vec[i] = i;	// the machine 0 as the temp memory
+	sort(job_sort_charact_vec.begin() + 1, job_sort_charact_vec.end(), cmpSort(charact[rm], Cmp_Mode::GREATER));
+	for (int i = 1; i <= m; i++)
+	{
+		s[si][i].resize(1, 0);	
+		q[si][i].resize(1, 1);	
+		c[si][i].resize(1, 0);	
+		wc[si][i].resize(1, 0);
+		sol_obj[si] = 0;
+	}
+	for (int j = 1; j <= n; j++)
+	{
+		proc_type min_wc = DBL_MAX;
+		int min_pos, min_mach;
+		for (int mach_i = 1; mach_i <= m; mach_i++)
+		{
+			int pos;
+			proc_type wc;
+			try_add(si, mach_i, job_sort_charact_vec[j], pos, wc);
+			if (min_wc > wc)
+			{
+				min_wc = wc;
+				min_mach = mach_i;
+				min_pos = pos;
+			}
+		}
+		add_job(si, min_mach, min_pos, job_sort_charact_vec[j]);
+	}
+	for (int mach_i = 1; mach_i <= m; mach_i++)
+		sol_obj[si] += wc[si][mach_i].back();
+	//check_solution(si);
+	//display_solution(si);
+}
+void PMS::calculate_obj(int si)
+{
+	sol_obj[si] = 0;
+	for (int i = 1; i <= m; i++)
+	{
+		if (effe_mach[si][i] && (c[si][i].back() - sol_obj[si]) > MIN_EQUAL)
+		{
+			sol_obj[si] = c[si][i].back();
+			mm[si] = i;
+		}
+	}
+}
+// try to find the best position on the machine and return the change of twc on the machine
+void PMS::try_add(int si, int mach_index, int job, int &min_pos, proc_type &min_wc)
+{
+	proc_type  qt, ct, wct;
+	min_wc = DBL_MAX;
+	for (int pos = 1; pos <= s[si][mach_index].size(); pos++)
+	{
+		// job is inserted into the pos position, and all the other jobs are moved afterward for one position
+		qt = q[si][mach_index][pos - 1] * (1 - d[mach_index][job]);
+		ct = c[si][mach_index][pos - 1] + p[job] / qt;
+		wct = wc[si][mach_index][pos - 1] + w[job] * ct;
+		for (int j = pos; j < s[si][mach_index].size(); j++)
+		{
+			qt *= (1 - d[mach_index][s[si][mach_index][j]]);
+			ct += p[s[si][mach_index][j]] / qt;
+			wct += w[s[si][mach_index][j]] * ct;
+		}
+		if (min_wc > wct)
+		{
+			min_wc = wct;
+			min_pos = pos;
+		}
+	}
+	min_wc -= wc[si][mach_index].back();
+}
+// try to remove job from its machine and return the change of the twc
+void PMS::try_remove(int si, int mach_index, int pos, proc_type &d_wc)
+{
+	proc_type qt = q[si][mach_index][pos - 1];
+	proc_type ct = c[si][mach_index][pos - 1];
+	d_wc = wc[si][mach_index][pos - 1];
+	for (int j = pos + 1; j < s[si][mach_index].size(); j++)
+	{
+		qt *= (1 - d[mach_index][s[si][mach_index][j]]);
+		ct += p[s[si][mach_index][j]] / qt;
+		d_wc += w[s[si][mach_index][j]] * ct;
+	}
+	d_wc -= wc[si][mach_index].back();
+}
+// add job to the exact position of the machine
+void PMS::add_job(int si, int mach_index, int pos, int job)
+{
+	if (s[si][mach_index].size() == 1)	// empty machine
+	{
+		s[si][mach_index].push_back(job);
+		q[si][mach_index].push_back(1 - d[mach_index][job]);
+		c[si][mach_index].push_back(p[job] / q[si][mach_index].back());
+		wc[si][mach_index].push_back(w[job] * c[si][mach_index].back());
+	}
+	else
+	{
+		s[si][mach_index].insert(s[si][mach_index].begin() + pos, job);
+		q[si][mach_index].insert(q[si][mach_index].begin() + pos,
+			(1 - d[mach_index][s[si][mach_index][pos]])*q[si][mach_index][pos - 1]);
+		c[si][mach_index].insert(c[si][mach_index].begin() + pos, c[si][mach_index][pos - 1] +
+			p[s[si][mach_index][pos]] / q[si][mach_index][pos]);
+		wc[si][mach_index].insert(wc[si][mach_index].begin() + pos, wc[si][mach_index][pos - 1] + w[job] * c[si][mach_index][pos]);
+		for (int i = pos + 1; i < s[si][mach_index].size(); i++)
+		{
+			q[si][mach_index][i] = (1 - d[mach_index][s[si][mach_index][i]])*q[si][mach_index][i - 1];
+			c[si][mach_index][i] = c[si][mach_index][i - 1] + p[s[si][mach_index][i]] / q[si][mach_index][i];
+			wc[si][mach_index][i] = wc[si][mach_index][i - 1] + w[s[si][mach_index][i]] * c[si][mach_index][i];
+		}
+	}
+}
+void PMS::remove_job(int si, int mach_index, int pos)
+{
+	if (s[si][mach_index].empty()||s[si][mach_index].size()<=pos)
+	{
+		cout << "ERROR, remove job out of range" << endl;
+		system("pause");
+	}
+	s[si][mach_index].erase(s[si][mach_index].begin() + pos);
+	q[si][mach_index].erase(q[si][mach_index].begin() + pos);
+	c[si][mach_index].erase(c[si][mach_index].begin() + pos);
+	wc[si][mach_index].erase(wc[si][mach_index].begin() + pos);
+	for (int i = pos; i < s[si][mach_index].size(); i++)
+	{
+		q[si][mach_index][i] = (1 - d[mach_index][s[si][mach_index][i]])*q[si][mach_index][i - 1];
+		c[si][mach_index][i] = c[si][mach_index][i - 1] + p[s[si][mach_index][i]] / q[si][mach_index][i];
+		wc[si][mach_index][i] = wc[si][mach_index][i - 1] + w[s[si][mach_index][i]] * c[si][mach_index][i];
+	}
+	if (s[si][mach_index].size() == 1)
+		effe_mach[si][mach_index] = false;	
+}
+void PMS::exchange_job(int si, int mach_index, int &pos_add, int &pos_remove, int job_add, int job_remove)
+{
+	if (pos_remove == 0)
+	{
+		pos_remove = 1;
+		while (pos_remove < s[si][mach_index].size()
+			&& s[si][mach_index][pos_remove] != job_remove)
+			pos_remove += 1;
+	}
+	else
+	{
+		if (s[si][mach_index][pos_remove] != job_remove)
+		{
+			cout << "ERROR, remove the wrong job in exchange job" << endl;
+			system("pause");
+		}
+	}
+	s[si][mach_index].erase(s[si][mach_index].begin() + pos_remove);
+	if (pos_add == 0)
+	{
+		pos_add = 1;
+		while (pos_add < s[si][mach_index].size()
+			&& r[mach_index][job_add] < r[mach_index][s[si][mach_index][pos_add]])
+			pos_add += 1;
+	}
+	s[si][mach_index].insert(s[si][mach_index].begin() + pos_add, job_add);
+	for (int i = pos_add < pos_remove ? pos_add : pos_remove; i < s[si][mach_index].size(); i++)
+	{
+		q[si][mach_index][i] = (1 - d[mach_index][s[si][mach_index][i - 1]])*q[si][mach_index][i - 1];
+		c[si][mach_index][i] = c[si][mach_index][i - 1] + p[s[si][mach_index][i]] / q[si][mach_index][i];
 	}
 }
 void PMS::display_solution(int si)
@@ -340,64 +397,60 @@ void PMS::display_solution(int si)
 		<< sol_obj[si] << ", " << mm[si] << " ***" << endl;
 	for (int i = 1; i <= m; i++)
 	{
-		obj_type ir = 0;
-		cout << i << ", " << effe_mach[si][i] << ", " << s[si][i].size() - 1 << ", " << c[si][i].back() << ": ";
+		cout << i << ", " << effe_mach[si][i] << ", " << s[si][i].size() - 1 << ", " << wc[si][i].back() << ": ";
 		for (int j = 1; j < s[si][i].size(); j++)
 		{
 			cout << s[si][i][j] /*<< ", " << r[i][s[si][i][j]] */ << "\t";
-			ir += (j*r[i][s[si][i][j]]);
 		}
-		cout /*<<ir*/ << endl;
+		cout << endl;
+	}
+}
+void PMS::check_sort(int si)
+{
+	cout << "check sort: " << si << endl;
+	for (int mach_i = 1; mach_i <= m; mach_i++)
+	{
+		for (int j = 2; j < s[si][mach_i].size();j++)
+			if (p[s[si][mach_i][j]] / w[s[si][mach_i][j]] < p[s[si][mach_i][j - 1]] / w[s[si][mach_i][j - 1]])
+			{
+				cout << " Not sort by increase p/w" << endl;
+				break;
+			}
+	}
+	for (int mach_i = 1; mach_i <= m; mach_i++)
+	{
+		for (int j = 2; j < s[si][mach_i].size(); j++)
+			if (p[s[si][mach_i][j]] / d[mach_i][s[si][mach_i][j]] > p[s[si][mach_i][j - 1]] / d[mach_i][s[si][mach_i][j - 1]])
+			{
+				cout << " Not sort by decrease p/d" << endl;
+				break;
+			}
 	}
 }
 void PMS::check_solution(int si)
 {
-	cout << "*** check si:" << si
-		<< ", obj: " << sol_obj[si] << " ***" << endl;
-	perf_type ql;
-	obj_type cl, max_cl = 0, total_comp_t = 0;
-	int max_cl_mach_index, sum_job_index = 0;
+	cout << "*** check s:" << si << ", obj: " << sol_obj[si] << " ***" << endl;
+	proc_type objt = 0;
+	int sum_job_index = 0;
 	for (int i = 1; i <= m; i++)
 	{
-		if (!effe_mach[si][i])
-			continue;
 		for (int j = 1; j < s[si][i].size(); j++)
 			sum_job_index += s[si][i][j];
-		ql = 1;
-		cl = 0;
+		dete_type qt = 1, ct = 0, max_ct = 0, wct = 0;
 		for (int j = 1; j < s[si][i].size(); j++)
 		{
-			cl += p[i][s[si][i][j]] / ql;
-			if (cl != c[si][i][j] || ql != q[si][i][j])
+			qt *= (1 - d[i][s[si][i][j]]);
+			ct += (p[s[si][i][j]] / qt);
+			wct += (w[s[si][i][j]] * ct);
+			if (ct != c[si][i][j] || qt != q[si][i][j]||wct!=wc[si][i][j])
 			{
-				cout << "ERROR, si: " << si << " q or c is wrong "
-					<< cl << ", " << c[si][i][j] << "\t"
-					<< ql << ", " << q[si][i][j] << endl;
-				system("pause");
-			}
-			ql *= (1 - d[i][s[si][i][j]]);
-			if (j > 1 && r[i][s[si][i][j - 1]] - r[i][s[si][i][j]] < MIN_EQUAL)
-			{
-				cout << "ERROR, si: " << si << " not sort by r "
-					<< si << "\t" << i << "\t" << j << "\t"
-					<< r[i][s[si][i][j - 1]] << " " << r[i][s[si][i][j]] << endl;
-				display_solution(si);
+				cout << "ERROR, si: " << si << " q, c, or wc is wrong "
+					<< ct << ", " << c[si][i][j] << "\t"
+					<< qt << ", " << q[si][i][j] << endl;
 				system("pause");
 			}
 		}
-		if (cl - max_cl > MIN_EQUAL)
-		{
-			max_cl = cl;
-			max_cl_mach_index = i;
-		}
-		if (cl != c[si][i].back())
-		{
-			cout << "ERROR, completion time is wrong, si: " << si
-				<< ", mach_index: " << i
-				<< ", real completion time: " << cl << " " << c[si][i].back() << endl;
-			system("pause");
-		}
-		total_comp_t += cl;
+		objt += wct;
 	}
 	if (sum_job_index != (1 + n)*n / 2)
 	{
@@ -406,16 +459,312 @@ void PMS::check_solution(int si)
 		display_solution(si);
 		system("pause");
 	}
-	if (total_comp_t != sol_obj[si])
+	if (fabs(objt - sol_obj[si] )>MIN_EQUAL)
 	{
-		cout << "ERROR, total completion time is wrong. " << si
-			<< ", real total completion time: " << total_comp_t << " " << sol_obj[si] << endl;
+		cout << "ERROR, twc is wrong. " << si
+			<< ", real twc: " << objt << " " << sol_obj[si] << endl;
 	}
 }
+void PMS::replace_solution(int dest, int src)
+{
+	for (int i = 1; i <= m; i++)
+	{
+		s[dest][i].assign(s[src][i].begin(), s[src][i].end());
+		q[dest][i].assign(q[src][i].begin(), q[src][i].end());
+		c[dest][i].assign(c[src][i].begin(), c[src][i].end());
+		wc[dest][i].assign(wc[src][i].begin(), wc[src][i].end());
+	}
+	sol_obj[dest] = sol_obj[src];
+}
+void PMS::local_search(int si)
+{
+	int num_imp = 0;
+	bool is_still_improve = true;
+	while (is_still_improve)
+	{
+		num_imp += 1;
+		//cout << num_imp << " times" << endl;
+		is_still_improve = false;
+		for (int i1 = 1; i1 <= m; i1++)
+		{
+			for (int j1 = 1; j1 < s[si][i1].size(); j1++)
+			{
+				int min_mach,min_pos;
+				proc_type min_wc = DBL_MAX;
+				for (int i2 = 1; i2 <= m; i2++)
+				{
+					if (i1 == i2)
+						continue;
+					int pos_t;
+					proc_type wc_t;
+					try_add(si, i2, s[si][i1][j1], pos_t, wc_t);
+					if (min_wc > wc_t)
+					{
+						min_wc = wc_t;
+						min_mach = i2;
+						min_pos = pos_t;
+					}
+				}
+				proc_type d_wc;
+				try_remove(si, i1, j1, d_wc);
+				if (min_wc + d_wc < 0)	// can improve
+				{
+					add_job(si, min_mach, min_pos, s[si][i1][j1]);
+					remove_job(si, i1, j1);
+					sol_obj[si] += (min_wc + d_wc);
+					j1 -= 1;
+					is_still_improve = true;
+					//check_solution(si);
+					//display_solution(si);
+				}
+			}
+		}
+	}
+	//cout << "num_imp: " << num_imp << endl;
+	//check_solution(si);
+	//display_solution(si);
+	//check_sort(si);
+}
+void PMS::perturb(int si, int ptr_rate)
+{
+	for (int i = 1; i <= n * ptr_rate*0.01; i++)
+	{
+		int mach_i1 = rand() % m + 1;
+		while(s[si][mach_i1].size()==1)
+			mach_i1 = rand() % m + 1;
+		int mach_i2 = rand() % m + 1;
+		while (mach_i1 == mach_i2)
+			mach_i2 = rand() % m + 1;
+		int pos1 = rand() % (s[si][mach_i1].size() - 1) + 1;
+		int pos2;
+		proc_type wct;
+		try_add(si, mach_i2, s[si][mach_i1][pos1], pos2, wct);
+		add_job(si, mach_i2, pos2, s[si][mach_i1][pos1]);
+		remove_job(si, mach_i1, pos1);
+	}
+	sol_obj[si] = 0;
+	for (int mach_i = 1; mach_i <= m; mach_i++)
+		sol_obj[si] += wc[si][mach_i].back();
+}
+void PMS::iterated_local_search(int iteration, int ptr, R_Mode r_mode, NS_Mode ns, int run_cnt_from, int run_cnt_to)
+{
+	int si_opt = 0, si_best = 1, si_cur = 2, si_ref = 3, si_ptr = 4,
+		si_trial = 5, si_best_eca = 6;
+	int opt_cnt = 0, imp_cnt = 0, non_imp_cnt = 0;
+	proc_type sum_delta_obj = 0;
+	int rt = time(NULL);
+	//rt =  1508693615;
+	srand(rt);
+	//ofs << ins_name << "\t" << n << "\t" << m << "\t"<< rt << endl;
+	cout << ins_name << "\t" << n << "\t" << m << "\t" << rt << endl;
+	double temperature0 = temperature;
+	for (int rc = run_cnt_from; rc <= run_cnt_to; rc++)
+	{
+		start_tm = clock();
+		init_solution(si_cur, r_mode);	
+		//display_solution(si_cur);
+		//local_search(si_cur);
+		ECA(si_cur, si_best_eca, si_ref, si_trial, ecag);
+		replace_solution(si_best, si_cur);
+		//check_solution(si_cur);
+		end_tm = clock();
+		//return;
+		//cout << rc << "\t0\t" << sol_obj[si_best] << endl;
+		//save_solution(si_best, si_opt, 0, run_cnt);
+		int min_obj_iter = 0;
+
+		for (int i = 0; i < iteration; i++)
+		{
+			replace_solution(si_ptr, si_cur);
+			//display_solution(si_ptr);
+			//check_solution(si_ptr);
+			perturb(si_ptr, ptr);
+			//check_solution(si_ptr);
+			//display_solution(si_ptr);
+			//cout << sol_obj[si_best]<< ", " << sol_obj[si_cur] << endl;
+			//check_solution(si_ptr);
+			//local_search_hybrid(si_ptr);
+			//local_search(si_ptr);
+			ECA(si_ptr, si_best_eca, si_ref, si_trial, ecag);
+			//check_solution(si_ptr);
+			if (sol_obj[si_best] - sol_obj[si_ptr] > MIN_EQUAL)
+			{
+				replace_solution(si_best, si_ptr);
+				end_tm = clock();
+				min_obj_iter = i;
+				//cout << rc << "\t" << i<<"\t"<<sol_obj[si_best] << endl;
+			}
+			int accept = 0;
+			int rand_num = rand() % 100;
+			//if (sol_obj[si_cur] - sol_obj[si_ptr] > MIN_EQUAL ||
+			//	rand() % 100 <= (control_para*100))
+			//{
+			//	replace_solution(si_cur, si_ptr);
+			//	//accept = 1;
+			//}
+			proc_type obj_si_cur = sol_obj[si_cur];
+			if (sol_obj[si_cur] - sol_obj[si_ptr] > MIN_EQUAL ||
+				rand_num <= (100 * exp((sol_obj[si_cur] - sol_obj[si_ptr]) / temperature)))
+			{
+				replace_solution(si_cur, si_ptr);
+				accept = 1;
+			}
+			//replace_solution(si_cur, si_best);
+			/*cout << temperature << "\t"
+			<< obj_si_cur <<"\t"
+			<<sol_obj[si_ptr]<<"\t"
+			<<rand_num<<"\t"
+			<< (100 * exp((obj_si_cur - sol_obj[si_ptr]) / (1*temperature)))<<"\t"
+			<<accept
+			<< endl;*/
+			temperature *= control_para;
+			if (temperature < 1)
+				temperature = temperature0;
+		}
+		//check_solution(si_best); 
+		//display_solution(si_best);
+
+		//save_solution(si_best, si_opt, min_obj_iter, rc);
+		cout << rc << ": " << sol_obj[si_best] << "\t" << endl;
+		//sum_delta_obj += (sol_obj[si_opt] - sol_obj[si_best]);
+		/*display_solution(si_opt);*/
+		//display_solution(si_best);		
+	}
+	//cout << sum_delta_obj << endl;
+}
+void PMS::ECA(int si_cur, int si_best, int si_ref, int si_trial, int eca_greedy)
+{
+	int opt_cnt = 0, imp_cnt = 0, non_imp_cnt = 0;
+	//display_solution(si_cur);
+	replace_solution(si_best, si_cur);
+	bool is_still_improve = true;
+	int min_obj_iter = 0;
+	while (is_still_improve)
+	{
+		is_still_improve = false;
+		bool is_trial_improve = true;
+
+		for (int eject_job1 = rand() % n + 1, eje = 1; eje <= n&&is_trial_improve; eje++, eject_job1 = eject_job1%n + 1)
+		{
+			bool is_located = true;
+			int i1, j1;
+			for (int i3 = 1; i3 <= m&&is_located; i3++)
+			{
+				for (int j3 = 1; j3 < s[si_cur][i3].size(); j3++)
+				{
+					if (s[si_cur][i3][j3] == eject_job1)
+					{
+						i1 = i3;
+						j1 = j3;
+						is_located = false;
+						break;
+					}
+				}
+			}
+			int len = 1, just_eject_mach = i1;
+			//display_solution(si_cur);
+			replace_solution(si_ref, si_cur);
+			remove_job(si_ref, i1, j1);
+			//display_solution(si_ref);
+			while (len <= cl)
+			{
+				//trial_move(si_trial, i1, eject_job1, si_ref);
+				replace_solution(si_trial, si_ref);
+				proc_type min_wc = DBL_MAX;
+				int min_wc_mach, min_wc_pos;
+				for (int i4 = 1; i4 <= m; i4++)
+				{
+					if (i4 == i1)
+						continue;
+					int probe_pos;
+					proc_type inc_wc;
+					try_add(si_trial, i4, eject_job1, probe_pos, inc_wc);
+					if (min_wc - inc_wc > MIN_EQUAL)
+					{
+						min_wc = inc_wc;
+						min_wc_mach = i4;
+						min_wc_pos = probe_pos;
+					}
+				}
+				add_job(si_trial, min_wc_mach, min_wc_pos, eject_job1);
+				sol_obj[si_trial] = 0;
+				for (int mach_i = 1; mach_i <= m; mach_i++)
+					sol_obj[si_trial] += wc[si_trial][mach_i].back();
+				min_obj_iter += 1;
+				//display_solution(si_trial);
+				//check_solution(si_trial);
+				if (sol_obj[si_cur] - sol_obj[si_trial] > MIN_EQUAL)
+				{
+					replace_solution(si_cur, si_trial);
+					is_trial_improve = false;
+					break;
+				}
+				if (rand() % 100 < eca_greedy)
+				{
+					int min_mach_eje, min_pos_eje, min_pos_add;
+					proc_type min_delta_obj = DBL_MAX;
+					for (int i2 = 1; i2 <= m; i2++)
+					{
+						if (i2 == just_eject_mach)
+							continue;
+						for (int j2 = 1; j2 < s[si_ref][i2].size(); j2++)
+						{
+							proc_type delta_obj, dec_wc, inc_wc;
+							int eject_job2 = s[si_ref][i2][j2];
+							int pos_add2;
+							try_remove(si_ref, i2, j2, dec_wc);
+							try_add(si_ref, just_eject_mach, eject_job2, pos_add2, inc_wc);
+							delta_obj = inc_wc + dec_wc/*+ (wc[si_ref][just_eject_mach].back() + wc[si_ref][i2].back())*/;
+							if (min_delta_obj - delta_obj > MIN_EQUAL)
+							{
+								min_delta_obj = delta_obj;
+								min_mach_eje = i2;
+								min_pos_eje = j2;
+								min_pos_add = pos_add2;
+							}
+						}
+					}
+					add_job(si_ref, just_eject_mach, min_pos_add, s[si_ref][min_mach_eje][min_pos_eje]);
+					remove_job(si_ref, min_mach_eje, min_pos_eje);
+					just_eject_mach = min_mach_eje;
+				}
+				else
+				{
+					int rand_m = rand() % m + 1;
+					while (rand_m == just_eject_mach)
+						rand_m = rand() % m + 1;
+					int rand_j = rand() % (s[si_ref][rand_m].size() - 1) + 1;
+					int eject_job2 = s[si_ref][rand_m][rand_j];
+					int pos_eject2;
+					proc_type inc_wc;
+					try_add(si_ref, just_eject_mach, eject_job2, pos_eject2, inc_wc);
+					add_job(si_ref, just_eject_mach, pos_eject2, eject_job2);
+					remove_job(si_ref, rand_m, rand_j);
+					//display_solution(si_ref);
+					just_eject_mach = rand_m;
+				}
+				len += 1;
+			}
+		}
+		if (sol_obj[si_best] - sol_obj[si_cur] > MIN_EQUAL)
+		{
+			end_tm = clock();
+			replace_solution(si_best, si_cur);
+			//check_solution(si_best);
+			is_still_improve = true;
+			//cout << sol_obj[si_best] << endl;
+		}
+	}
+	replace_solution(si_cur,si_best);
+	//display_solution(si_best);
+	/*cout << sol_obj[si_best] << "\t"
+		<< endl;*/
+}
+#if 0
 void PMS::check_solution_machine(int si, int mach_index)
 {
-	perf_type ql;
-	obj_type cl, max_cl = 0;
+	dete_type ql;
+	proc_type cl, max_cl = 0;
 	int max_cl_mach_index, sum_job_index = 0;
 	int i = mach_index;
 	for (int j = 1; j < s[si][i].size(); j++)
@@ -460,123 +809,6 @@ void PMS::calculate_completion_time(int si, int mach_index)
 		q[si][mach_index][i] = (1 - d[mach_index][s[si][mach_index][i - 1]])*q[si][mach_index][i - 1];
 		c[si][mach_index][i] = c[si][mach_index][i - 1] + p[mach_index][s[si][mach_index][i]] / q[si][mach_index][i];
 	}
-}
-void PMS::calculate_obj(int si)
-{
-	sol_obj[si] = 0;
-	for (int i = 1; i <= m; i++)
-	{
-		if (effe_mach[si][i] == false)
-			continue;
-		sol_obj[si] += c[si][i].back();
-	}
-}
-void PMS::add_job(int si, int mach_index, int &position, int job)
-{
-	if (s[si][mach_index].size() == 1)	// empty machine
-	{
-		effe_mach[si][mach_index] = true;	// indicate it is effective
-		s[si][mach_index].push_back(job);
-		q[si][mach_index].push_back(1);
-		c[si][mach_index].push_back(p[mach_index][job]);
-	}
-	else
-	{
-		if (position == 0)
-		{
-			position = 1;
-			while (position < s[si][mach_index].size()
-				&& r[mach_index][job] < r[mach_index][s[si][mach_index][position]])
-				position += 1;
-		}
-		s[si][mach_index].insert(s[si][mach_index].begin() + position, job);
-		q[si][mach_index].insert(q[si][mach_index].begin() + position,
-			(1 - d[mach_index][s[si][mach_index][position - 1]])*q[si][mach_index][position - 1]);
-		c[si][mach_index].insert(c[si][mach_index].begin() + position, c[si][mach_index][position - 1] +
-			p[mach_index][s[si][mach_index][position]] / q[si][mach_index][position]);
-		for (int i = position + 1; i < s[si][mach_index].size(); i++)
-		{
-			q[si][mach_index][i] = (1 - d[mach_index][s[si][mach_index][i - 1]])*q[si][mach_index][i - 1];
-			c[si][mach_index][i] = c[si][mach_index][i - 1] + p[mach_index][s[si][mach_index][i]] / q[si][mach_index][i];
-		}
-	}
-}
-void PMS::remove_job(int si, int mach_index, int &position, int job)
-{
-	if (s[si][mach_index].empty())
-	{
-		cout << "ERROR, remove job from empty machine" << endl;
-		system("pause");
-	}
-	if (position == 0)
-	{
-		position = 1;
-		while (position < s[si][mach_index].size()
-			&& s[si][mach_index][position] != job)
-			position += 1;
-	}
-	else
-	{
-		if (s[si][mach_index][position] != job)
-		{
-			cout << "ERROR, remove the wrong job" << endl;
-			system("pause");
-		}
-	}
-	s[si][mach_index].erase(s[si][mach_index].begin() + position);
-	q[si][mach_index].erase(q[si][mach_index].begin() + position);
-	c[si][mach_index].erase(c[si][mach_index].begin() + position);
-	for (int i = position; i < s[si][mach_index].size(); i++)
-	{
-		q[si][mach_index][i] = (1 - d[mach_index][s[si][mach_index][i - 1]])*q[si][mach_index][i - 1];
-		c[si][mach_index][i] = c[si][mach_index][i - 1] + p[mach_index][s[si][mach_index][i]] / q[si][mach_index][i];
-	}
-	if (s[si][mach_index].size() == 1)
-		effe_mach[si][mach_index] = false;	// indicate it is not effective
-}
-void PMS::exchange_job(int si, int mach_index, int &pos_add, int &pos_remove, int job_add, int job_remove)
-{
-	if (pos_remove == 0)
-	{
-		pos_remove = 1;
-		while (pos_remove < s[si][mach_index].size()
-			&& s[si][mach_index][pos_remove] != job_remove)
-			pos_remove += 1;
-	}
-	else
-	{
-		if (s[si][mach_index][pos_remove] != job_remove)
-		{
-			cout << "ERROR, remove the wrong job in exchange job" << endl;
-			system("pause");
-		}
-	}
-	s[si][mach_index].erase(s[si][mach_index].begin() + pos_remove);
-	if (pos_add == 0)
-	{
-		pos_add = 1;
-		while (pos_add < s[si][mach_index].size()
-			&& r[mach_index][job_add] < r[mach_index][s[si][mach_index][pos_add]])
-			pos_add += 1;
-	}
-	s[si][mach_index].insert(s[si][mach_index].begin() + pos_add, job_add);
-	for (int i = pos_add < pos_remove ? pos_add : pos_remove; i < s[si][mach_index].size(); i++)
-	{
-		q[si][mach_index][i] = (1 - d[mach_index][s[si][mach_index][i - 1]])*q[si][mach_index][i - 1];
-		c[si][mach_index][i] = c[si][mach_index][i - 1] + p[mach_index][s[si][mach_index][i]] / q[si][mach_index][i];
-	}
-}
-void PMS::replace_solution(int dest, int src)
-{
-	for (int i = 1; i <= m; i++)
-	{
-		s[dest][i].assign(s[src][i].begin(), s[src][i].end());
-		q[dest][i].assign(q[src][i].begin(), q[src][i].end());
-		c[dest][i].assign(c[src][i].begin(), c[src][i].end());
-	}
-	effe_mach[dest].assign(effe_mach[src].begin(), effe_mach[src].end());
-	mm[dest] = mm[src];
-	sol_obj[dest] = sol_obj[src];
 }
 void PMS::save_solution(int si, int si_opt, int iterration, int run_cnt)
 {
@@ -623,65 +855,6 @@ void PMS::save_solution(int si, int si_opt, int iterration, int run_cnt)
 			ofs << endl;
 		}
 	}
-}
-void PMS::init_solution(int si, R_Mode rm)
-{
-	if (rm == R_Mode::RANDOM)
-	{
-		for (int j = 1; j <= n; j++)
-			charact[rm][j] = rand() % 1000;
-	}
-	vector<int> job_sort_charact_vec(n + 1);
-	for (int i = 1; i <= n; i++)
-		job_sort_charact_vec[i] = i;	// the machine 0 as the temp memory
-	sort(job_sort_charact_vec.begin() + 1, job_sort_charact_vec.end(), cmpSort(charact[rm], Cmp_Mode::GREATER));
-	/*for (int i = 1; i <= n; i++)
-	cout << job_sort_charact_vec[i] << " " << charact[rm][job_sort_charact_vec[i]] << "\t";
-	cout << endl;*/
-	for (int i = 1; i <= m; i++)
-	{
-		s[si][i].resize(1, 0);	// indicate it is effective
-		q[si][i].resize(1, 1);	// out of essence
-		c[si][i].resize(1, 0);	// out of essence
-	}
-	effe_mach[si].assign(m + 1, true);
-	mm[si] = 0;
-	for (int j = 1; j <= n; j++)
-	{
-		proc_type min_completion_time = DBL_MAX;
-		int min_ct_mach_index, min_position;
-		for (int i = 1; i <= m; i++)
-		{
-			int position = 0;
-			add_job(si, i, position, job_sort_charact_vec[j]);
-			if (c[si][i].back() < min_completion_time)
-			{
-				min_completion_time = c[si][i].back();
-				min_ct_mach_index = i;
-				min_position = position;
-			}
-			remove_job(si, i, position, job_sort_charact_vec[j]);
-		}
-		add_job(si, min_ct_mach_index, min_position, job_sort_charact_vec[j]);
-	}
-	calculate_obj(si);
-	//check_solution(si);
-}
-void PMS::perturb(int si, int ptr_rate)
-{
-	for (int i = 0; i < (s[si][mm[si]].size() - 1) * ptr_rate*0.01; i++)
-	{
-		int pos_remove_mm = rand() % (s[si][mm[si]].size() - 1) + 1, pos_add_mm = 0;
-		int job_add = s[si][mm[si]][pos_remove_mm];
-		int mach_i = rand() % m + 1;
-		while (mach_i == mm[si] || s[si][mach_i].size() == 1)
-			mach_i = rand() % m + 1;
-		int pos_remove_mi = rand() % (s[si][mach_i].size() - 1) + 1, pos_add_mi = 0;
-		int job_remove = s[si][mach_i][pos_remove_mi];
-		exchange_job(si, mach_i, pos_add_mi, pos_remove_mi, job_add, job_remove);
-		exchange_job(si, mm[si], pos_add_mm, pos_remove_mm, job_remove, job_add);
-	}
-	calculate_obj(si);
 }
 void PMS::perturb1(int si, int ptr_rate)
 {
@@ -762,7 +935,7 @@ void PMS::local_search_hybrid(int si)
 					continue;
 				//display_solution(si);
 				int pos_remove = 0, pos_add = 0, cur_job = s[si][mm[si]][jm];
-				obj_type pre_obj = sol_obj[si];
+				proc_type pre_obj = sol_obj[si];
 				remove_job(si, mm[si], pos_remove, cur_job);
 				add_job(si, i, pos_add, cur_job);
 				calculate_obj(si);
@@ -786,7 +959,7 @@ void PMS::local_search_hybrid(int si)
 				{
 					int pos_remove_mi = j, pos_add_mi = 0, pos_remove_mm = jm, pos_add_mm = 0,
 						job_remove = s[si][i][j], job_add = s[si][mm[si]][jm];
-					obj_type pre_obj = sol_obj[si];
+					proc_type pre_obj = sol_obj[si];
 					/*if (i == mm[si])
 					{
 					system("pause");
@@ -817,75 +990,6 @@ void PMS::local_search_hybrid(int si)
 	}
 }
 
-void PMS::local_search(int si)
-{
-	int num_imp = 0, num_ins_swap = 0;
-	bool is_still_improve = true;
-	while (is_still_improve)
-	{
-		num_imp += 1;
-		is_still_improve = false;
-		for (int i1 = 1; i1 <= m; i1++)
-		{
-			if (!effe_mach[si][i1])
-				continue;
-			for (int j1 = 1; j1 < s[si][i1].size(); j1++)
-			{
-				int pos_remove_j1 = j1, job_i1 = s[si][i1][j1];
-				bool is_improve_swap = true;
-				for (int i2 = 1; i2 <= m&&is_improve_swap; i2++)
-				{
-					if (i1 == i2 || !effe_mach[si][i2])
-						continue;
-					int pos_add_j2 = 0;
-					obj_type pre_obj = sol_obj[si];
-					remove_job(si, i1, pos_remove_j1, job_i1);
-					add_job(si, i2, pos_add_j2, job_i1);
-					calculate_obj(si);
-					//check_solution(si);
-					if (pre_obj - sol_obj[si] > MIN_EQUAL)
-					{
-						is_still_improve = true;
-						num_ins_swap += 1;
-						break;
-					}
-					else
-					{
-						remove_job(si, i2, pos_add_j2, job_i1);
-						add_job(si, i1, pos_remove_j1, job_i1);
-						sol_obj[si] = pre_obj;
-					}
-					for (int j2 = 1; j2 < s[si][i2].size(); j2++)
-					{
-						int pos_add_j1 = 0, pos_remove_j2 = j2, job_i2 = s[si][i2][j2];
-						pos_add_j2 = 0;	// consider to remove this line
-						pre_obj = sol_obj[si];
-						exchange_job(si, i1, pos_add_j1, pos_remove_j1, job_i2, job_i1);
-						exchange_job(si, i2, pos_add_j2, pos_remove_j2, job_i1, job_i2);
-						calculate_obj(si);
-						if (pre_obj - sol_obj[si] > MIN_EQUAL)
-						{
-							is_still_improve = true;
-							is_improve_swap = false;
-							num_ins_swap += 1;
-							break;
-						}
-						else
-						{
-							exchange_job(si, i1, pos_remove_j1, pos_add_j1, job_i1, job_i2);
-							exchange_job(si, i2, pos_remove_j2, pos_add_j2, job_i2, job_i1);
-							//calculate_obj(si);
-							sol_obj[si] = pre_obj;
-						}
-					}
-				}
-			}
-		}
-	}
-	/*cout << "num_cmp: " << num_imp
-		<< ", num_ins_swap: " << num_ins_swap << endl;*/
-		//check_solution(si);
-}
 void PMS::local_search_hybrid_tri_insert(int si)
 {
 	bool is_still_improved = true;
@@ -906,7 +1010,7 @@ void PMS::local_search_hybrid_tri_insert(int si)
 					continue;
 				//display_solution(si);
 				int pos_remove = 0, pos_add = 0, cur_job = s[si][mm[si]][jm];
-				obj_type pre_obj = sol_obj[si];
+				proc_type pre_obj = sol_obj[si];
 				remove_job(si, mm[si], pos_remove, cur_job);
 				add_job(si, i, pos_add, cur_job);
 				calculate_obj(si);
@@ -933,7 +1037,7 @@ void PMS::local_search_hybrid_tri_insert(int si)
 				{
 					int pos_remove_mi = j, pos_add_mi = 0, pos_remove_mm = jm, pos_add_mm = 0,
 						job_remove = s[si][i][j], job_add = s[si][mm[si]][jm];
-					obj_type pre_obj = sol_obj[si];
+					proc_type pre_obj = sol_obj[si];
 					/*if (i == mm[si])
 					{
 					system("pause");
@@ -1035,7 +1139,7 @@ void PMS::local_search_hybrid_tri_swap(int si)
 					continue;
 				//display_solution(si);
 				int pos_remove = 0, pos_add = 0, cur_job = s[si][mm[si]][jm];
-				obj_type pre_obj = sol_obj[si];
+				proc_type pre_obj = sol_obj[si];
 				remove_job(si, mm[si], pos_remove, cur_job);
 				add_job(si, i, pos_add, cur_job);
 				calculate_obj(si);
@@ -1062,7 +1166,7 @@ void PMS::local_search_hybrid_tri_swap(int si)
 				{
 					int pos_remove_mi = j, pos_add_mi = 0, pos_remove_mm = jm, pos_add_mm = 0,
 						job_remove = s[si][i][j], job_add = s[si][mm[si]][jm];
-					obj_type pre_obj = sol_obj[si];
+					proc_type pre_obj = sol_obj[si];
 					/*if (i == mm[si])
 					{
 					system("pause");
@@ -1176,7 +1280,7 @@ void PMS::local_search_hybrid_tri_insert_swap(int si)
 					continue;
 				//display_solution(si);
 				int pos_remove = 0, pos_add = 0, cur_job = s[si][mm[si]][jm];
-				obj_type pre_obj = sol_obj[si];
+				proc_type pre_obj = sol_obj[si];
 				remove_job(si, mm[si], pos_remove, cur_job);
 				add_job(si, i, pos_add, cur_job);
 				calculate_obj(si);
@@ -1203,7 +1307,7 @@ void PMS::local_search_hybrid_tri_insert_swap(int si)
 				{
 					int pos_remove_mi = j, pos_add_mi = 0, pos_remove_mm = jm, pos_add_mm = 0,
 						job_remove = s[si][i][j], job_add = s[si][mm[si]][jm];
-					obj_type pre_obj = sol_obj[si];
+					proc_type pre_obj = sol_obj[si];
 					/*if (i == mm[si])
 					{
 					system("pause");
@@ -1463,291 +1567,12 @@ void PMS::divide_and_conquer(int si, int mach_num)
 	ls_cnt2 += 1;
 	//check_solution(si);
 }
-void PMS::iterated_local_search(int iteration, int perturb_rate, R_Mode r_mode, NS_Mode ns, int run_cnt_from, int run_cnt_to)
-{
-	int si_opt = 0, si_best = 1,
-		si_cur = 2, si_local = 3, si_ptr = 4;
-	int opt_cnt = 0, imp_cnt = 0, non_imp_cnt = 0;
-	obj_type sum_delta_obj = 0;
-	int rt = time(NULL);
-	//rt = 1461506514;
-	srand(rt);
-	ofs << ins_name << "\t" << n << "\t" << m << "\t"
-		<< obj_given << "\t" << sol_obj[si_opt] << "\t" << rt << endl;
-	cout << ins_name << "\t" << n << "\t" << m << "\t"
-		<< obj_given << "\t" << sol_obj[si_opt] << "\t" << rt << endl;
-	double temperature0 = temperature;
-	for (int rc = run_cnt_from; rc <= run_cnt_to; rc++)
-	{
-		start_tm = clock();
-		init_solution(si_cur, r_mode);	//PMS::MINPDD
-		//display_solution(si_cur);
-		local_search(si_cur);
-		//local_search_hybrid(si_cur);
-		//local_search_ejection_chain(si_cur, si_local, ns);
-		replace_solution(si_best, si_cur);
-		end_tm = clock();
-		//return;
-		//cout << rc << "\t0\t" << sol_obj[si_best] << endl;
-		//save_solution(si_best, si_opt, 0, run_cnt);
-		int min_obj_iter = 0;
-		//if (n <= 14)	// find the optimal solution for instances in OB set
-		//{
-		//	if (fabs(sol_obj[si_best] - sol_obj[si_opt]) <= MIN_EQUAL)
-		//		iteration = 0;
-		//	else
-		//		iteration = INT16_MAX;
-		//}
-		for (int i = 0; i < iteration; i++)
-		{
-			replace_solution(si_ptr, si_cur);
-			//display_solution(si_ptr);
-			//check_solution(si_ptr);
-			perturb1(si_ptr, perturb_rate);
-			//display_solution(si_ptr);
-			//cout << sol_obj[si_best]<< ", " << sol_obj[si_cur] << endl;
-			//local_search_ejection_chain(si_ptr, si_local, ns);
-			//check_solution(si_ptr);
-			//local_search_hybrid(si_ptr);
-			local_search(si_ptr);
-			//check_solution(si_ptr);
-			if (sol_obj[si_best] - sol_obj[si_ptr] > MIN_EQUAL)
-			{
-				replace_solution(si_best, si_ptr);
-				end_tm = clock();
-				min_obj_iter = i;
-				//cout << rc << "\t" << i<<"\t"<<sol_obj[si_best] << endl;
-				if (n <= 14 && fabs(sol_obj[si_best] - sol_obj[si_opt]) <= MIN_EQUAL)
-					break;
-			}
-			int accept = 0;
-			int rand_num = rand() % 100;
-			obj_type obj_si_cur = sol_obj[si_cur];
-			//if (sol_obj[si_cur] - sol_obj[si_ptr] > MIN_EQUAL ||
-			//	rand() % 100 <= (control_para*100))
-			//{
-			//	replace_solution(si_cur, si_ptr);
-			//	//accept = 1;
-			//}
-			if (sol_obj[si_cur] - sol_obj[si_ptr] > MIN_EQUAL ||
-				rand_num <= (100 * exp((sol_obj[si_cur] - sol_obj[si_ptr]) / temperature)))
-			{
-				replace_solution(si_cur, si_ptr);
-				accept = 1;
-			}
-			//replace_solution(si_cur, si_best);
-			/*cout << temperature << "\t"
-			<< obj_si_cur <<"\t"
-			<<sol_obj[si_ptr]<<"\t"
-			<<rand_num<<"\t"
-			<< (100 * exp((obj_si_cur - sol_obj[si_ptr]) / (1*temperature)))<<"\t"
-			<<accept
-			<< endl;*/
-			temperature *= control_para;
-			if (temperature < 1)
-				temperature = temperature0;
-		}
-		//check_solution(si_best); 
-		//display_solution(si_best);
-		makespan = 0;
-		for (int i = 1; i <= m; i++)
-		{
-			if (!effe_mach[si_best][i])
-				continue;
-			if (c[si_best][i].back() - makespan > MIN_EQUAL)
-			{
-				makespan = c[si_best][i].back();
-				mm[si_best] = i;
-			}
-		}
-		save_solution(si_best, si_opt, min_obj_iter, rc);
-		cout << sol_obj[si_best] << "\t" << sol_obj[si_opt] - sol_obj[si_best] << "\t"
-			<< makespan << "\t" << mm[si_best]
-			<< endl;
-		sum_delta_obj += (sol_obj[si_opt] - sol_obj[si_best]);
-		/*display_solution(si_opt);*/
-		//display_solution(si_best);		
-	}
-	cout << sum_delta_obj << endl;
-}
-void PMS::ejection_chain_local_search(int iteration, int perturb_rate, R_Mode r_mode, NS_Mode ns, int run_cnt_from, int run_cnt_to)
-{
-	int si_opt = 0, si_best = 1,
-		si_cur = 2, si_local = 3, si_ptr = 4, si_ref = 5, si_trial = 6;
-	int opt_cnt = 0, imp_cnt = 0, non_imp_cnt = 0;
-	int rt = time(NULL);
-	//rt = 1491483583;
-	srand(rt);
-	ofs << ins_name << "\t" << n << "\t" << m << "\t"
-		<< obj_given << "\t" << sol_obj[si_opt] << "\t" << rt << endl;
-	cout << ins_name << "\t" << n << "\t" << m << "\t"
-		<< obj_given << "\t" << sol_obj[si_opt] << "\t" << rt << endl;
-	for (int rc = run_cnt_from; rc <= run_cnt_to; rc++)
-	{
-		start_tm = clock();
-		init_solution(si_cur, r_mode);
-		//display_solution(si_cur);
-		replace_solution(si_best, si_cur);
-		bool is_still_improve = true;
-		int min_obj_iter = 0;
-		while (is_still_improve)
-		{
-			is_still_improve = false;
-			bool is_trial_improve = true;
-
-			for (int eject_job1 = rand()%n+1,eje=1; eje <= n&&is_trial_improve;eje++, eject_job1=eject_job1%n+1)
-			{
-				bool is_located = true;
-				int i1, j1;
-				for (int i3 = 1; i3 <= m&&is_located; i3++)
-				{
-					if (!effe_mach[si_cur][i3])
-						continue;
-					for (int j3 = 1; j3 < s[si_cur][i3].size(); j3++)
-					{
-						if (s[si_cur][i3][j3] == eject_job1)
-						{
-							i1 = i3;
-							j1 = j3;
-							is_located = false;
-							break;
-						}
-					}
-				}
-				int len = 1, just_eject_mach = i1;
-				//display_solution(si_cur);
-				replace_solution(si_ref, si_cur);
-				remove_job(si_ref, i1, j1, s[si_ref][i1][j1]);
-				//display_solution(si_ref);
-				while (len <= cl)
-				{
-					//trial_move(si_trial, i1, eject_job1, si_ref);
-					replace_solution(si_trial, si_ref);
-					obj_type min_c = DBL_MAX;
-					int min_c_mach, min_c_pos;
-					for (int i4 = 1; i4 <= m; i4++)
-					{
-						if (i4 == i1)
-							continue;
-						int probe_pos = 0;
-						obj_type min_delta_c = -c[si_trial][i4].back();
-						add_job(si_trial, i4, probe_pos, eject_job1);
-						min_delta_c += c[si_trial][i4].back();
-						if (min_c - min_delta_c > MIN_EQUAL)
-						{
-							min_c = min_delta_c;
-							min_c_mach = i4;
-							min_c_pos = probe_pos;
-						}
-						remove_job(si_trial, i4, probe_pos, eject_job1);
-					}
-					add_job(si_trial, min_c_mach, min_c_pos, eject_job1);
-					calculate_obj(si_trial);
-					min_obj_iter += 1;
-					//display_solution(si_trial);
-					//check_solution(si_trial);
-					if (sol_obj[si_cur] - sol_obj[si_trial] > MIN_EQUAL)
-					{
-						replace_solution(si_cur, si_trial);
-						is_trial_improve = false;
-						break;
-					}
-					if (rand() % 100 < perturb_rate)
-					{
-						int min_mach, min_job, pos_eject2;
-						obj_type min_delta_obj = DBL_MAX;
-						if (m == 2)
-						{
-							if (effe_mach[si_ref][1] == false)
-								just_eject_mach = 1;
-							if (effe_mach[si_ref][2] == false)
-								just_eject_mach = 2;
-						}
-						for (int i2 = 1; i2 <= m; i2++)
-						{
-							if (i2 == just_eject_mach || !effe_mach[si_ref][i2])
-								continue;
-							for (int j2 = 1; j2 < s[si_ref][i2].size(); j2++)
-							{
-								obj_type delta_obj = -c[si_ref][just_eject_mach].back() - c[si_ref][i2].back();
-								int eject_job2 = s[si_ref][i2][j2];
-								pos_eject2 = 0;
-								remove_job(si_ref, i2, j2, eject_job2);
-								add_job(si_ref, just_eject_mach, pos_eject2, eject_job2);
-								delta_obj += (c[si_ref][just_eject_mach].back() + c[si_ref][i2].back());
-								if (min_delta_obj - delta_obj > MIN_EQUAL)
-								{
-									min_delta_obj = delta_obj;
-									min_mach = i2;
-									min_job = j2;
-								}
-								add_job(si_ref, i2, j2, eject_job2);
-								remove_job(si_ref, just_eject_mach, pos_eject2, eject_job2);
-							}
-						}
-						pos_eject2 = 0;
-						add_job(si_ref, just_eject_mach, pos_eject2, s[si_ref][min_mach][min_job]);
-						remove_job(si_ref, min_mach, min_job, s[si_ref][min_mach][min_job]);
-						just_eject_mach = min_mach;
-					}
-					else
-					{
-						int rand_m = rand() % m + 1;
-						if (m == 2)
-						{
-							if (effe_mach[si_ref][1] == false)
-								just_eject_mach = 1;
-							if (effe_mach[si_ref][2] == false)
-								just_eject_mach = 2;
-						}
-						while (rand_m == just_eject_mach || !effe_mach[si_ref][rand_m])
-							rand_m = rand() % m + 1;
-						int rand_j = rand() % (s[si_ref][rand_m].size() - 1) + 1;
-						int eject_job2 = s[si_ref][rand_m][rand_j];
-						int pos_eject2 = 0;
-						//display_solution(si_ref);
-						add_job(si_ref, just_eject_mach, pos_eject2, eject_job2);
-						remove_job(si_ref, rand_m, rand_j, eject_job2);
-						just_eject_mach = rand_m;
-						//display_solution(si_ref);
-					}
-					len += 1;
-				}
-			}
-			if (sol_obj[si_best] - sol_obj[si_cur] > MIN_EQUAL)
-			{
-				end_tm = clock();
-				replace_solution(si_best, si_cur);
-				//check_solution(si_best);
-				is_still_improve = true;
-				//cout << sol_obj[si_best] << endl;
-			}
-		}
-		//calculate makespan
-		makespan = 0;
-		for (int i3 = 1; i3 <= m; i3++)
-		{
-			if (!effe_mach[si_best][i3])
-				continue;
-			if (c[si_best][i3].back() - makespan > MIN_EQUAL)
-			{
-				makespan = c[si_best][i3].back();
-				mm[si_best] = i3;
-			}
-		}
-		save_solution(si_best, si_opt, min_obj_iter, rc);
-		//display_solution(si_best);
-		/*cout << sol_obj[si_best] << "\t" << sol_obj[si_opt] - sol_obj[si_best] << "\t"
-			<< makespan << "\t" << mm[si_best]
-			<< endl;*/
-	}
-}
 void PMS::hma(int iteration, int perturb_rate, R_Mode r_mode, NS_Mode ns, int run_cnt_from, int run_cnt_to)
 {
 	int si_opt = 0, si_best = sol_num - non_popu + 2,
 		si_offspring = sol_num - non_popu + 1;
 	int opt_cnt = 0, imp_cnt = 0, non_imp_cnt = 0;
-	obj_type sum_delta_obj = 0;
+	proc_type sum_delta_obj = 0;
 	int rt = time(NULL);
 #ifdef _WIN32
 	//rt = 1462129579;
@@ -1905,7 +1730,7 @@ void PMS::gpx(int offspring, int pa1, int pa2)
 	{
 		int p = (i % 2 == 1) ? p1 : p2;
 		int po = (i % 2 == 1) ? p2 : p1;
-		obj_type max_obj = -1;
+		proc_type max_obj = -1;
 		int max_obj_mach;
 		for (int j = 1; j <= m; j++)
 		{
@@ -2096,7 +1921,7 @@ void PMS::ufx(int offspring, int pa1, int pa2)
 }
 void PMS::pool_update(int offspring, int gen, int p2)
 {
-	obj_type obj_worst = 0;
+	proc_type obj_worst = 0;
 	int p_worst, equ_cnt;
 	int rand_tt = sol_num / 4 + rand() % (sol_num / 2);
 	for (int i = 1; i <= sol_num - non_popu; i++)
@@ -2130,9 +1955,9 @@ void PMS::pool_update(int offspring, int gen, int p2)
 // quality and distance based pool updating rule
 void PMS::pool_update_qd(int offspring, int gen, int p2)
 {
-	obj_type obj_worst = 0;
+	proc_type obj_worst = 0;
 	int p_worst, equ_cnt;
-	vector<vector<obj_type>> dis(sol_num - non_popu + 2, vector<obj_type>(sol_num - non_popu + 2, 0));
+	vector<vector<proc_type>> dis(sol_num - non_popu + 2, vector<proc_type>(sol_num - non_popu + 2, 0));
 	int rand_tt = sol_num / 4 + rand() % (sol_num / 2);
 	for (int ins1 = 1; ins1 < sol_num - non_popu + 1; ins1++)
 	{
@@ -2158,8 +1983,8 @@ void PMS::pool_update_qd(int offspring, int gen, int p2)
 			dis[ins2][ins1] = dis[ins1][ins2];
 		}
 	}
-	vector<obj_type> distance(sol_num - non_popu + 2, 1);
-	vector<obj_type> dis_port(2, 0), obj_port(2, 0);
+	vector<proc_type> distance(sol_num - non_popu + 2, 1);
+	vector<proc_type> dis_port(2, 0), obj_port(2, 0);
 	int min = 0, max = 1;
 	for (int ins1 = 1; ins1 <= sol_num - non_popu + 1; ins1++)
 	{
@@ -2187,9 +2012,9 @@ void PMS::pool_update_qd(int offspring, int gen, int p2)
 				obj_port[max] = sol_obj[ins1];
 		}
 	}
-	vector<obj_type> goodscore(sol_num - non_popu + 2, 1);
+	vector<proc_type> goodscore(sol_num - non_popu + 2, 1);
 	int worst_p;
-	obj_type min_gs = 1;
+	proc_type min_gs = 1;
 	for (int ins = 1; ins <= sol_num - non_popu + 1; ins++)
 	{
 		goodscore[ins] = pu_beta*(distance[ins] - dis_port[min]) / (dis_port[max] - dis_port[min] + 1) +
@@ -2231,6 +2056,7 @@ void PMS::test()
 		std::cout << ' ' << *it;
 	std::cout << '\n';
 }
+#endif
 void run_algorithm(std::map<string, string> &argv_map, string ins_name)
 {
 	string fnr = argv_map.at("_if") + ins_name;
@@ -2251,7 +2077,7 @@ void run_algorithm(std::map<string, string> &argv_map, string ins_name)
 		"_beta" + argv_map.at("_pu_beta") +
 		"_r" + argv_map.at("_r1") +
 		"_r" + argv_map.at("_r2") + ".txt";
-	PMS *pms = new PMS(fnr, fnw, stoi(argv_map.at("_p")));//Ni_14_4-1_1_15
+	PMS *pms = new PMS(fnr, fnw, stoi(argv_map.at("_p")));
 	pms->ins_name = ins_name;
 	pms->whe_save_sol_seq = stoi(argv_map.at("_ws"));
 	pms->temperature = stoi(argv_map.at("_t"));
@@ -2265,8 +2091,10 @@ void run_algorithm(std::map<string, string> &argv_map, string ins_name)
 	pms->cx_method = stoi(argv_map.at("_xo"));
 	pms->cl = stoi(argv_map.at("_cl"));
 	pms->am = stoi(argv_map.at("_am"));
-	//pms->test();
+	pms->ecag = stoi(argv_map.at("_ecag"));
 	//pms->display_problem();
+	//pms->init_solution(1, PMS::R_Mode::RANDOM);
+	//pms->local_search(1);
 	//pms->display_solution(0);
 	//pms->check_solution(0);
 	//enum R_Mode { EXAC = 0, MINP, MAXP, MIND, MAXD, MINPDD, MAXPDD, MINPD, MAXPD, SIZE };
@@ -2292,13 +2120,65 @@ void run_algorithm(std::map<string, string> &argv_map, string ins_name)
 	PMS::NS_Mode ns_mode = stoi(argv_map.at("_ns")) == 0 ? PMS::SWAP : PMS::INSERT;
 	/*pms->hma(stoi(argv_map.at("_itr")), stoi(argv_map.at("_ptr")),
 		r_mode, ns_mode, stoi(argv_map.at("_r1")), stoi(argv_map.at("_r2")));*/
-	/*if (pms->am == 0)
+	if (pms->am == 0)
 		pms->iterated_local_search(stoi(argv_map.at("_itr")), stoi(argv_map.at("_ptr")),
 			r_mode, ns_mode, stoi(argv_map.at("_r1")), stoi(argv_map.at("_r2")));
-	else if (pms->am == 1)
+	/*else if (pms->am == 1)
 		pms->ejection_chain_local_search(stoi(argv_map.at("_itr")), stoi(argv_map.at("_ptr")),
 			r_mode, ns_mode, stoi(argv_map.at("_r1")), stoi(argv_map.at("_r2")));*/
 	delete pms;
+}
+
+void generate_instance_file(string ofp)
+{
+	int n_vec[2][3] = { { 8, 11, 14 },{ 20, 35, 50 } };
+	int m_vec[2][3] = { { 2, 3, 4 },{ 4, 7, 10 } };
+	for (int vi = 1; vi <= 1; vi++)	// 0, 1
+	{
+		for (int ni = 0; ni < 3; ni++)
+		{
+			for (int mi = 0; mi < 3; mi++)
+			{
+				for (int pi = 1; pi <= 2; pi++)
+				{
+					for (int di = 1; di <= 2; di++)
+					{
+						for (int cnt = 1; cnt <= 10; cnt++) // each generate 10 files
+						{
+							string ofn = ofp + "N_" + to_string(n_vec[vi][ni]) + "_" + to_string(m_vec[vi][mi]) + "_"
+								+ to_string(pi) + "_" + to_string(di) + "_" + to_string(cnt)+".txt";
+							ofstream ofs(ofn, ios::trunc | ios::out);
+							if (!ofs.is_open())
+							{
+								cout << ofp << endl; perror("ofp.");
+								exit(0);
+							}
+							ofs.setf(ios::fixed, ios::floatfield);
+							ofs.precision(4);
+							ofs << n_vec[vi][ni] << "\t" << m_vec[vi][mi] << endl;
+							for (int nj = 1; nj <= n_vec[vi][ni]; nj++)
+							{
+								if (pi == 1)
+									ofs << 1 + rand() % 100 << "\t";
+								else 
+									ofs << 100 + rand() % 101 << "\t";
+								ofs << 1 + rand() % 10 << "\t";	// weight which are the same on different machine
+								for (int mj = 1; mj <= m_vec[vi][mi]; mj++)
+								{
+									if (di == 1)
+										ofs << (1 + rand() % 4 + rand() % 100 * 0.01)*0.01 << "\t";
+									else
+										ofs << (5 + rand() % 5 + rand() % 100 * 0.01)*0.01 << "\t";
+								}
+								ofs << endl;
+							}
+							ofs.close();
+						}
+					}
+				}				
+			}
+		}
+	}
 }
 int main(int argc, char **argv)
 {
@@ -2314,21 +2194,20 @@ int main(int argc, char **argv)
 		"_pu","1",	"_xo","2",
 		"_cl", "5",	"_am", "1",
 
-		"_vi1","0",		"_vi2","2",
-		"_ni1","0",		"_ni2","3",
-		"_vj1","0",		"_vj2","2",
-		"_mj1","0",		"_mj2","3",
+		"_vi1","1",		"_vi2","1",
+		"_ni1","0",		"_ni2","2",
+		"_mj1","0",		"_mj2","2",
 		"_pi1","1",		"_pi2","2",
 		"_di1","1",		"_di2","2",
 		"_ins1","1",	"_ins2","25"
 	};
-	char *rgv[] = { "",	//0
+	char *rgv_win[] = { "",	//0
 		"_px","hma_test",	//prefix for output file name
-		"_if","instance\\BB_Problem\\",	//input file directory
+		"_if","instance\\BB_W_Problem\\",	//input file directory
 		"_of","results\\",// output file directory
 		"_p","20",		// population size
 		"_itr","2000",	// max iteration of ILS
-		"_ptr","50",	// perturbation rate 
+		"_ptr","30",	// perturbation rate 
 		"_rm","9",	// construction rules for initial solution
 		"_ns","0",	// neighborhood search, 0:swap, 1:insert	
 		"_r1","1",	// run cnt from
@@ -2343,16 +2222,17 @@ int main(int argc, char **argv)
 		"_pu", "1",	// pool update method
 		"_xo", "2",	// crossover method
 		"_cl", "5", // length of the chain
-		"_am", "1", // algorithm method
+		"_am", "0", // algorithm method
+		"_ecag","70",
 		"_vi1","1",		"_vi2","1",
 		"_ni1","0",		"_ni2","2",
 		"_mj1","0",		"_mj2","2",
 		"_pi1","1",		"_pi2","2",
 		"_di1","1",		"_di2","2",
-		"_ins1","1",	"_ins2","25"
+		"_ins1","1",	"_ins2","1"
 	};
 #ifdef _WIN32
-	argc = sizeof(rgv) / sizeof(rgv[0]); argv = rgv;
+	argc = sizeof(rgv_win) / sizeof(rgv_win[0]); argv = rgv_win;
 #endif
 	std::map<string, string> argv_map;
 	argv_map["_exe_name"] = argv[0];	// add the exe file name to argv map, to append to the output file name
@@ -2362,6 +2242,7 @@ int main(int argc, char **argv)
 		argv_map[string(argv[i])] = string(argv[i + 1]);
 	vector<vector<int>> n_vec{ { 8, 11, 14 },{ 20, 35, 50 } };
 	vector<vector<int>> m_vec{ { 2, 3, 4 },{ 4, 7, 10 } };
+	//generate_instance_file(argv_map.at("_if"));
 	for (int vi = stoi(argv_map.at("_vi1")); vi <= stoi(argv_map.at("_vi2")); vi++)	// 0, 1
 	{
 		for (int ni = stoi(argv_map.at("_ni1")); ni <= stoi(argv_map.at("_ni2")); ni++)	// 0, 2
@@ -2374,8 +2255,8 @@ int main(int argc, char **argv)
 					{
 						for (int ins = stoi(argv_map.at("_ins1")); ins <= stoi(argv_map.at("_ins2")); ins++)	// 1, 25
 						{
-							run_algorithm(argv_map, "Ni_" + to_string(n_vec[vi][ni]) + "_" + to_string(m_vec[vi][mj]) + "-"
-								+ to_string(pi) + "_" + to_string(di) + "_" + to_string(ins));
+							run_algorithm(argv_map, "N_" + to_string(n_vec[vi][ni]) + "_" + to_string(m_vec[vi][mj]) + "_"
+								+ to_string(pi) + "_" + to_string(di) + "_" + to_string(ins) + ".txt");
 						}
 					}
 				}
